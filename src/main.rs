@@ -49,7 +49,7 @@ fn main() -> Result<()> {
 
     // clipboard watcher thread - runs forever in the background
     {
-        let store  = Arc::clone(&store);
+        let store = Arc::clone(&store);
         let config = Arc::clone(&config);
         thread::Builder::new()
             .name("clipvault-daemon".into())
@@ -62,7 +62,7 @@ fn main() -> Result<()> {
 
     // global hotkey listener thread
     {
-        let config    = Arc::clone(&config);
+        let config = Arc::clone(&config);
         let event_tx2 = event_tx.clone();
         thread::Builder::new()
             .name("clipvault-hotkeys".into())
@@ -75,9 +75,9 @@ fn main() -> Result<()> {
 
     // discord rich presence - async so it doesnt block anything
     {
-        let store  = Arc::clone(&store);
+        let store = Arc::clone(&store);
         let config = Arc::clone(&config);
-        let rt2    = Arc::clone(&rt);
+        let rt2 = Arc::clone(&rt);
         thread::Builder::new()
             .name("clipvault-discord".into())
             .spawn(move || {
@@ -91,9 +91,9 @@ fn main() -> Result<()> {
 
     // check for updates on startup (non-blocking, just sends a notification if there is one)
     {
-        let config    = Arc::clone(&config);
+        let config = Arc::clone(&config);
         let event_tx2 = event_tx.clone();
-        let rt2       = Arc::clone(&rt);
+        let rt2 = Arc::clone(&rt);
         thread::Builder::new()
             .name("clipvault-updater".into())
             .spawn(move || {

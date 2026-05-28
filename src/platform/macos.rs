@@ -55,7 +55,7 @@ pub fn register_startup() {
         let _ = std::fs::create_dir_all(parent);
     }
     match std::fs::write(&plist_path, plist) {
-        Ok(_)  => debug!("LaunchAgent installed: {}", plist_path.display()),
+        Ok(_) => debug!("LaunchAgent installed: {}", plist_path.display()),
         Err(e) => warn!("Failed to install LaunchAgent: {e}"),
     }
 }

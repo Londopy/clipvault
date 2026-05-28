@@ -36,71 +36,71 @@ pub struct Config {
 // general stuff - history size, whether to save to disk, etc
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GeneralConfig {
-    pub history_limit:    usize,
-    pub persist_history:  bool,
-    pub deduplicate:      bool,
-    pub auto_start:       bool,
-    pub pause_on_lock:    bool,
+    pub history_limit: usize,
+    pub persist_history: bool,
+    pub deduplicate: bool,
+    pub auto_start: bool,
+    pub pause_on_lock: bool,
     pub auto_clear_hours: u64,
 }
 
 // all the keyboard shortcuts
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HotkeyConfig {
-    pub open_history:      String,
-    pub open_snippets:     String,
-    pub clear_clipboard:   String,
-    pub paste_last:        String,
+    pub open_history: String,
+    pub open_snippets: String,
+    pub clear_clipboard: String,
+    pub paste_last: String,
     pub instant_paste_mod: String,
-    pub incognito:         String,
+    pub incognito: String,
 }
 
 // window appearance settings
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GuiConfig {
-    pub position:          String,
-    pub theme:             String,
-    pub accent_color:      String,
+    pub position: String,
+    pub theme: String,
+    pub accent_color: String,
     pub max_visible_items: usize,
-    pub show_timestamps:   bool,
-    pub show_source_app:   bool,
-    pub animate_open:      bool,
+    pub show_timestamps: bool,
+    pub show_source_app: bool,
+    pub animate_open: bool,
 }
 
 // notification settings per event type
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NotificationConfig {
-    pub enabled:     bool,
-    pub on_copy:     bool,
-    pub on_paste:    bool,
-    pub on_update:   bool,
+    pub enabled: bool,
+    pub on_copy: bool,
+    pub on_paste: bool,
+    pub on_update: bool,
     pub duration_ms: u64,
-    pub sound:       bool,
+    pub sound: bool,
 }
 
 // discord rich presence stuff
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DiscordConfig {
-    pub rich_presence:  bool,
+    pub rich_presence: bool,
     pub application_id: String,
 }
 
 // auto updater settings
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpdaterConfig {
-    pub enabled:          bool,
-    pub channel:          String,
+    pub enabled: bool,
+    pub channel: String,
     pub check_on_startup: bool,
-    pub auto_install:     bool,
+    pub auto_install: bool,
 }
 
 // privacy and security options
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SecurityConfig {
-    pub excluded_apps:      Vec<String>,
-    pub mask_passwords:     bool,
-    pub encrypt_history:    bool,
-    pub incognito_hotkey:   String,
+    pub excluded_apps: Vec<String>,
+    pub mask_passwords: bool,
+    pub encrypt_history: bool,
+    pub incognito_hotkey: String,
     pub auto_clear_on_lock: bool,
 }
 
@@ -109,11 +109,11 @@ pub struct SecurityConfig {
 impl Default for GeneralConfig {
     fn default() -> Self {
         Self {
-            history_limit:    200,
-            persist_history:  true,
-            deduplicate:      true,
-            auto_start:       true,
-            pause_on_lock:    false,
+            history_limit: 200,
+            persist_history: true,
+            deduplicate: true,
+            auto_start: true,
+            pause_on_lock: false,
             auto_clear_hours: 0,
         }
     }
@@ -122,12 +122,12 @@ impl Default for GeneralConfig {
 impl Default for HotkeyConfig {
     fn default() -> Self {
         Self {
-            open_history:      "ctrl+shift+v".into(),
-            open_snippets:     "ctrl+shift+c".into(),
-            clear_clipboard:   "ctrl+shift+x".into(),
-            paste_last:        "ctrl+shift+p".into(),
+            open_history: "ctrl+shift+v".into(),
+            open_snippets: "ctrl+shift+c".into(),
+            clear_clipboard: "ctrl+shift+x".into(),
+            paste_last: "ctrl+shift+p".into(),
             instant_paste_mod: "ctrl+alt".into(),
-            incognito:         "ctrl+shift+i".into(),
+            incognito: "ctrl+shift+i".into(),
         }
     }
 }
@@ -135,13 +135,13 @@ impl Default for HotkeyConfig {
 impl Default for GuiConfig {
     fn default() -> Self {
         Self {
-            position:          "cursor".into(),
-            theme:             "dark".into(),
-            accent_color:      "#4f8ef7".into(),
+            position: "cursor".into(),
+            theme: "dark".into(),
+            accent_color: "#4f8ef7".into(),
             max_visible_items: 12,
-            show_timestamps:   true,
-            show_source_app:   true,
-            animate_open:      true,
+            show_timestamps: true,
+            show_source_app: true,
+            animate_open: true,
         }
     }
 }
@@ -149,12 +149,12 @@ impl Default for GuiConfig {
 impl Default for NotificationConfig {
     fn default() -> Self {
         Self {
-            enabled:     true,
-            on_copy:     true,
-            on_paste:    false,
-            on_update:   true,
+            enabled: true,
+            on_copy: true,
+            on_paste: false,
+            on_update: true,
             duration_ms: 2500,
-            sound:       false,
+            sound: false,
         }
     }
 }
@@ -162,7 +162,7 @@ impl Default for NotificationConfig {
 impl Default for DiscordConfig {
     fn default() -> Self {
         Self {
-            rich_presence:  true,
+            rich_presence: true,
             application_id: "REPLACE_WITH_YOUR_APP_ID".into(),
         }
     }
@@ -171,10 +171,10 @@ impl Default for DiscordConfig {
 impl Default for UpdaterConfig {
     fn default() -> Self {
         Self {
-            enabled:          true,
-            channel:          "stable".into(),
+            enabled: true,
+            channel: "stable".into(),
             check_on_startup: true,
-            auto_install:     false,
+            auto_install: false,
         }
     }
 }
@@ -182,14 +182,14 @@ impl Default for UpdaterConfig {
 impl Default for SecurityConfig {
     fn default() -> Self {
         Self {
-            excluded_apps:      vec![
+            excluded_apps: vec![
                 "1Password".into(),
                 "KeePassXC".into(),
                 "Bitwarden".into(),
             ],
-            mask_passwords:     true,
-            encrypt_history:    false,
-            incognito_hotkey:   "ctrl+shift+i".into(),
+            mask_passwords: true,
+            encrypt_history: false,
+            incognito_hotkey: "ctrl+shift+i".into(),
             auto_clear_on_lock: false,
         }
     }
@@ -198,13 +198,13 @@ impl Default for SecurityConfig {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            general:       GeneralConfig::default(),
-            hotkeys:       HotkeyConfig::default(),
-            gui:           GuiConfig::default(),
+            general: GeneralConfig::default(),
+            hotkeys: HotkeyConfig::default(),
+            gui: GuiConfig::default(),
             notifications: NotificationConfig::default(),
-            discord:       DiscordConfig::default(),
-            updater:       UpdaterConfig::default(),
-            security:      SecurityConfig::default(),
+            discord: DiscordConfig::default(),
+            updater: UpdaterConfig::default(),
+            security: SecurityConfig::default(),
         }
     }
 }

@@ -13,10 +13,10 @@ use crate::gui::AppEvent;
 
 // change these to your actual github username and repo before shipping
 const GITHUB_OWNER: &str = "Londopy";
-const GITHUB_REPO:  &str = "clipvault";
+const GITHUB_REPO: &str = "clipvault";
 
 pub async fn check_and_notify(
-    config:   Arc<Mutex<Config>>,
+    config: Arc<Mutex<Config>>,
     event_tx: Sender<AppEvent>,
 ) -> Result<()> {
     let (enabled, check_on_startup, auto_install) = {
@@ -77,15 +77,8 @@ fn install_update() -> Result<()> {
         .update()?;
 
     match status {
-        self_update::Status::UpToDate(v)  => debug!("Already up-to-date: {v}"),
+        self_update::Status::UpToDate(v) => debug!("Already up-to-date: {v}"),
         self_update::Status::Updated(v) => {
             info!("Updated to {v}. Restarting…");
-            let exe  = std::env::current_exe()?;
-            let args: Vec<String> = std::env::args().skip(1).collect();
-            std::process::Command::new(exe).args(&args).spawn()?;
-            std::process::exit(0);
-        }
-    }
-
-    Ok(())
-}
+            let exe = std::env::current_exe()?;
+            let args: Vec<String> = std::env::args

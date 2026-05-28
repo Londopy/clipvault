@@ -17,7 +17,7 @@ use crate::store::Store;
 // how long to wait before trying to reconnect after discord drops
 const RECONNECT_DELAY_SECS: u64 = 15;
 // how often to refresh the presence (every 10 seconds)
-const UPDATE_INTERVAL_SECS:  u64 = 10;
+const UPDATE_INTERVAL_SECS: u64 = 10;
 
 pub async fn run(store: Arc<Mutex<Store>>, config: Arc<Mutex<Config>>) -> Result<()> {
     // bail early if its disabled or the user never set their app id
@@ -43,7 +43,7 @@ pub async fn run(store: Arc<Mutex<Store>>, config: Arc<Mutex<Config>>) -> Result
     // keep reconnecting if discord closes, its pretty normal for that to happen
     loop {
         match connect_and_update(app_id, session_start, &store, &config).await {
-            Ok(_)  => {}
+            Ok(_) => {}
             Err(e) => {
                 warn!("Discord presence disconnected: {e}. Reconnecting in {RECONNECT_DELAY_SECS}s…");
                 sleep(Duration::from_secs(RECONNECT_DELAY_SECS)).await;
@@ -53,10 +53,10 @@ pub async fn run(store: Arc<Mutex<Store>>, config: Arc<Mutex<Config>>) -> Result
 }
 
 async fn connect_and_update(
-    app_id:        u64,
+    app_id: u64,
     session_start: u64,
-    store:         &Arc<Mutex<Store>>,
-    config:        &Arc<Mutex<Config>>,
+    store: &Arc<Mutex<Store>>,
+    config: &Arc<Mutex<Config>>,
 ) -> Result<()> {
     let mut client = Client::new(app_id);
 
@@ -73,16 +73,4 @@ async fn connect_and_update(
             return Ok(());
         }
 
-        let item_count = store.lock().unwrap().len();
-        let state      = format!("{item_count} items in history");
-
-        client.set_activity(|act| {
-            act.state(&state)
-               .details("Managing clipboard")
-               .timestamps(|ts| ts.start(session_start))
-        }).ok();
-
-        debug!("Discord presence updated: {state}");
-        sleep(Duration::from_secs(UPDATE_INTERVAL_SECS)).await;
-    }
-}
+        let item_count = store.lock().un

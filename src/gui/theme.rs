@@ -5,40 +5,40 @@
 use egui::{Color32, Rounding, Stroke, Visuals};
 
 pub struct Palette {
-    pub bg:           Color32,
+    pub bg: Color32,
     pub bg_secondary: Color32,
     pub bg_highlight: Color32,
-    pub text:         Color32,
-    pub text_dim:     Color32,
-    pub accent:       Color32,
-    pub danger:       Color32,
-    pub border:       Color32,
+    pub text: Color32,
+    pub text_dim: Color32,
+    pub accent: Color32,
+    pub danger: Color32,
+    pub border: Color32,
 }
 
 impl Palette {
     pub fn dark(accent: Color32) -> Self {
         Self {
-            bg:           Color32::from_rgb(20,  20,  24),
-            bg_secondary: Color32::from_rgb(30,  30,  36),
-            bg_highlight: Color32::from_rgb(45,  45,  55),
-            text:         Color32::from_rgb(220, 220, 220),
-            text_dim:     Color32::from_rgb(140, 140, 150),
+            bg: Color32::from_rgb(20, 20, 24),
+            bg_secondary: Color32::from_rgb(30, 30, 36),
+            bg_highlight: Color32::from_rgb(45, 45, 55),
+            text: Color32::from_rgb(220, 220, 220),
+            text_dim: Color32::from_rgb(140, 140, 150),
             accent,
-            danger:       Color32::from_rgb(220, 80,  80),
-            border:       Color32::from_rgb(55,  55,  65),
+            danger: Color32::from_rgb(220, 80, 80),
+            border: Color32::from_rgb(55, 55, 65),
         }
     }
 
     pub fn light(accent: Color32) -> Self {
         Self {
-            bg:           Color32::from_rgb(245, 245, 248),
+            bg: Color32::from_rgb(245, 245, 248),
             bg_secondary: Color32::from_rgb(232, 232, 238),
             bg_highlight: Color32::from_rgb(210, 215, 230),
-            text:         Color32::from_rgb(25,  25,  30),
-            text_dim:     Color32::from_rgb(110, 110, 120),
+            text: Color32::from_rgb(25, 25, 30),
+            text_dim: Color32::from_rgb(110, 110, 120),
             accent,
-            danger:       Color32::from_rgb(200, 60,  60),
-            border:       Color32::from_rgb(200, 200, 210),
+            danger: Color32::from_rgb(200, 60, 60),
+            border: Color32::from_rgb(200, 200, 210),
         }
     }
 }
@@ -47,23 +47,23 @@ impl Palette {
 pub fn build_visuals(palette: &Palette) -> Visuals {
     let mut v = Visuals::dark();
 
-    v.panel_fill             = palette.bg;
-    v.window_fill            = palette.bg_secondary;
-    v.window_stroke          = Stroke::new(1.0, palette.border);
-    v.window_rounding        = Rounding::same(8.0);
+    v.panel_fill = palette.bg;
+    v.window_fill = palette.bg_secondary;
+    v.window_stroke = Stroke::new(1.0, palette.border);
+    v.window_rounding = Rounding::same(8.0);
 
-    v.widgets.noninteractive.bg_fill   = palette.bg_secondary;
+    v.widgets.noninteractive.bg_fill = palette.bg_secondary;
     v.widgets.noninteractive.fg_stroke = Stroke::new(1.0, palette.text_dim);
-    v.widgets.inactive.bg_fill         = palette.bg_secondary;
-    v.widgets.inactive.fg_stroke       = Stroke::new(1.0, palette.text);
-    v.widgets.hovered.bg_fill          = palette.bg_highlight;
-    v.widgets.hovered.fg_stroke        = Stroke::new(1.5, palette.accent);
-    v.widgets.active.bg_fill           = palette.accent;
-    v.widgets.active.fg_stroke         = Stroke::new(1.5, palette.bg);
-    v.widgets.open.bg_fill             = palette.bg_highlight;
+    v.widgets.inactive.bg_fill = palette.bg_secondary;
+    v.widgets.inactive.fg_stroke = Stroke::new(1.0, palette.text);
+    v.widgets.hovered.bg_fill = palette.bg_highlight;
+    v.widgets.hovered.fg_stroke = Stroke::new(1.5, palette.accent);
+    v.widgets.active.bg_fill = palette.accent;
+    v.widgets.active.fg_stroke = Stroke::new(1.5, palette.bg);
+    v.widgets.open.bg_fill = palette.bg_highlight;
 
-    v.selection.bg_fill   = palette.accent.linear_multiply(0.4);
-    v.selection.stroke     = Stroke::new(1.0, palette.accent);
+    v.selection.bg_fill = palette.accent.linear_multiply(0.4);
+    v.selection.stroke = Stroke::new(1.0, palette.accent);
 
     v.override_text_color = Some(palette.text);
 
@@ -93,8 +93,3 @@ pub fn system_is_dark() -> bool {
     {
         true // TODO: actually check NSApp.effectiveAppearance someday
     }
-    #[cfg(not(target_os = "macos"))]
-    {
-        true
-    }
-}

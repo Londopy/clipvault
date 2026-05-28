@@ -66,7 +66,7 @@ fn show_image_preview(ui: &mut Ui, entry: &ClipEntry, palette: &Palette) {
     use base64::{engine::general_purpose::STANDARD as B64, Engine};
     if let Ok(bytes) = B64.decode(&entry.data) {
         if let Ok(img) = image::load_from_memory(&bytes) {
-            let rgba   = img.to_rgba8();
+            let rgba = img.to_rgba8();
             let (w, h) = rgba.dimensions();
             let color_image = egui::ColorImage::from_rgba_unmultiplied(
                 [w as usize, h as usize],
@@ -80,7 +80,7 @@ fn show_image_preview(ui: &mut Ui, entry: &ClipEntry, palette: &Palette) {
             );
             let max_size = egui::vec2(ui.available_width(), 160.0);
             let img_size = egui::vec2(w as f32, h as f32);
-            let scale    = (max_size.x / img_size.x).min(max_size.y / img_size.y).min(1.0);
+            let scale = (max_size.x / img_size.x).min(max_size.y / img_size.y).min(1.0);
             ui.image((texture.id(), img_size * scale));
         } else {
             ui.label(RichText::new("⚠ Could not decode image").color(palette.danger));
@@ -113,6 +113,3 @@ fn show_filepath_preview(ui: &mut Ui, entry: &ClipEntry, palette: &Palette) {
             ui.label(RichText::new(format!("Size: {size_str}")).color(palette.text_dim).small());
         }
     } else {
-        ui.label(RichText::new("✗ File not found").color(palette.danger).small());
-    }
-}

@@ -13,12 +13,12 @@ use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Snippet {
-    pub id:         String,
-    pub name:       String,
-    pub content:    String,
+    pub id: String,
+    pub name: String,
+    pub content: String,
     // e.g. "email" means you can trigger it by typing ";;email"
-    pub shortcode:  Option<String>,
-    pub category:   Option<String>,
+    pub shortcode: Option<String>,
+    pub category: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -27,7 +27,7 @@ impl Snippet {
     pub fn new(name: String, content: String, shortcode: Option<String>, category: Option<String>) -> Self {
         let now = Utc::now();
         Self {
-            id:         Uuid::new_v4().to_string(),
+            id: Uuid::new_v4().to_string(),
             name,
             content,
             shortcode,
@@ -46,12 +46,12 @@ impl Snippet {
 // this is the json format we save to disk
 #[derive(Debug, Default, Serialize, Deserialize)]
 struct SnippetsFile {
-    version:  u32,
+    version: u32,
     snippets: Vec<Snippet>,
 }
 
 pub struct SnippetStore {
-    pub snippets:  Vec<Snippet>,
+    pub snippets: Vec<Snippet>,
     // maps shortcode string -> snippet id, rebuilt whenever things change
     shortcode_map: HashMap<String, String>,
 }
@@ -108,7 +108,7 @@ impl SnippetStore {
     {
         let sn = self.snippets.iter_mut().find(|s| s.id == id)
             .ok_or_else(|| anyhow::anyhow!("snippet not found: {id}"))?;
-        if let Some(n) = name    { sn.name    = n; }
+        if let Some(n) = name { sn.name = n; }
         if let Some(c) = content { sn.content = c; }
         if let Some(sc) = shortcode { sn.shortcode = sc; }
         if let Some(cat) = category { sn.category = cat; }

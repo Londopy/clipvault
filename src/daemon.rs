@@ -22,7 +22,7 @@ pub fn run(store: Arc<Mutex<Store>>, config: Arc<Mutex<Config>>) -> Result<()> {
     let mut clipboard = Clipboard::new()?;
 
     // track the last thing we saw so we only push when something actually changes
-    let mut last_text:  Option<String>  = None;
+    let mut last_text: Option<String> = None;
     let mut last_image: Option<Vec<u8>> = None;
 
     loop {
@@ -30,7 +30,7 @@ pub fn run(store: Arc<Mutex<Store>>, config: Arc<Mutex<Config>>) -> Result<()> {
 
         // grab the settings we need for this tick
         let (paused, incognito, deduplicate, excluded_apps, mask_passwords, persist) = {
-            let s   = store.lock().unwrap();
+            let s = store.lock().unwrap();
             let cfg = config.lock().unwrap();
             (
                 s.paused,
@@ -66,7 +66,7 @@ pub fn run(store: Arc<Mutex<Store>>, config: Arc<Mutex<Config>>) -> Result<()> {
                 } else {
                     text
                 };
-                let entry  = ClipEntry::new_text(text, source_app.clone());
+                let entry = ClipEntry::new_text(text, source_app.clone());
                 let pushed = store.lock().unwrap().push(entry, deduplicate);
                 if pushed && persist {
                     if let Err(e) = store.lock().unwrap().save() {
@@ -83,7 +83,7 @@ pub fn run(store: Arc<Mutex<Store>>, config: Arc<Mutex<Config>>) -> Result<()> {
                 last_image = Some(raw.clone());
                 match make_thumbnail(&raw, img.width as u32, img.height as u32) {
                     Ok(thumb_b64) => {
-                        let entry  = ClipEntry::new_image(thumb_b64, None, source_app.clone());
+                        let entry = ClipEntry::new_image(thumb_b64, None, source_app.clone());
                         let pushed = store.lock().unwrap().push(entry, deduplicate);
                         if pushed && persist {
                             if let Err(e) = store.lock().unwrap().save() {
@@ -102,9 +102,9 @@ pub fn run(store: Arc<Mutex<Store>>, config: Arc<Mutex<Config>>) -> Result<()> {
 fn make_thumbnail(rgba: &[u8], width: u32, height: u32) -> Result<String> {
     let img = image::RgbaImage::from_raw(width, height, rgba.to_vec())
         .ok_or_else(|| anyhow::anyhow!("invalid image dimensions"))?;
-    let dyn_img   = image::DynamicImage::ImageRgba8(img);
+    let dyn_img = image::DynamicImage::ImageRgba8(img);
     let thumbnail = dyn_img.thumbnail(200, 200);
-    let mut buf   = std::io::Cursor::new(Vec::new());
+    let mut buf = std::io::Cursor::new(Vec::new());
     thumbnail.write_to(&mut buf, ImageFormat::WebP)?;
     Ok(B64.encode(buf.into_inner()))
 }
@@ -116,10 +116,10 @@ fn looks_like_password(s: &str) -> bool {
     if trimmed.contains('\n') || trimmed.contains(' ') {
         return false;
     }
-    let has_upper  = trimmed.chars().any(|c| c.is_uppercase());
-    let has_lower  = trimmed.chars().any(|c| c.is_lowercase());
-    let has_digit  = trimmed.chars().any(|c| c.is_ascii_digit());
+    let has_upper = trimmed.chars().any(|c| c.is_uppercase());
+    let has_lower = trimmed.chars().any(|c| c.is_lowercase());
+    let has_digit = trimmed.chars().any(|c| c.is_ascii_digit());
     let has_symbol = trimmed.chars().any(|c| !c.is_alphanumeric());
-    let len        = trimmed.len();
+    let len = trimmed.len();
     len >= 8 && len <= 64 && has_upper && has_lower && has_digit && has_symbol
 }

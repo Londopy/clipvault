@@ -16,27 +16,27 @@ use crate::gui::AppEvent;
 // represents a keyboard shortcut like ctrl+shift+v
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct KeyCombo {
-    pub ctrl:  bool,
+    pub ctrl: bool,
     pub shift: bool,
-    pub alt:   bool,
-    pub meta:  bool, // cmd on mac
-    pub key:   Key,
+    pub alt: bool,
+    pub meta: bool, // cmd on mac
+    pub key: Key,
 }
 
 impl KeyCombo {
     // turns a string like "ctrl+shift+v" into a KeyCombo
     pub fn parse(s: &str) -> Option<Self> {
         let parts: Vec<&str> = s.to_lowercase().split('+').collect();
-        let mut ctrl  = false;
+        let mut ctrl = false;
         let mut shift = false;
-        let mut alt   = false;
-        let mut meta  = false;
-        let mut key   = None;
+        let mut alt = false;
+        let mut meta = false;
+        let mut key = None;
         for part in &parts {
             match *part {
-                "ctrl" | "control" => ctrl  = true,
-                "shift"            => shift = true,
-                "alt"              => alt   = true,
+                "ctrl" | "control" => ctrl = true,
+                "shift" => shift = true,
+                "alt" => alt = true,
                 "meta" | "cmd" | "super" | "win" => meta = true,
                 k => { key = str_to_key(k); }
             }
@@ -46,11 +46,11 @@ impl KeyCombo {
 
     // checks if the currently held keys + the just-pressed key match this combo
     pub fn matches(&self, held: &HashSet<Key>, just_pressed: &Key) -> bool {
-        let ctrl_ok  = self.ctrl  == (held.contains(&Key::ControlLeft) || held.contains(&Key::ControlRight));
+        let ctrl_ok = self.ctrl == (held.contains(&Key::ControlLeft) || held.contains(&Key::ControlRight));
         let shift_ok = self.shift == (held.contains(&Key::ShiftLeft) || held.contains(&Key::ShiftRight));
-        let alt_ok   = self.alt   == (held.contains(&Key::Alt) || held.contains(&Key::AltGr));
-        let meta_ok  = self.meta  == (held.contains(&Key::MetaLeft) || held.contains(&Key::MetaRight));
-        let key_ok   = *just_pressed == self.key;
+        let alt_ok = self.alt == (held.contains(&Key::Alt) || held.contains(&Key::AltGr));
+        let meta_ok = self.meta == (held.contains(&Key::MetaLeft) || held.contains(&Key::MetaRight));
+        let key_ok = *just_pressed == self.key;
         ctrl_ok && shift_ok && alt_ok && meta_ok && key_ok
     }
 }
@@ -71,55 +71,55 @@ fn str_to_key(s: &str) -> Option<Key> {
         "4" => Some(Key::Num4), "5" => Some(Key::Num5), "6" => Some(Key::Num6),
         "7" => Some(Key::Num7), "8" => Some(Key::Num8), "9" => Some(Key::Num9),
         "0" => Some(Key::Num0),
-        "f1"  => Some(Key::F1),  "f2"  => Some(Key::F2),  "f3"  => Some(Key::F3),
-        "f4"  => Some(Key::F4),  "f5"  => Some(Key::F5),  "f6"  => Some(Key::F6),
-        "f7"  => Some(Key::F7),  "f8"  => Some(Key::F8),  "f9"  => Some(Key::F9),
+        "f1" => Some(Key::F1), "f2" => Some(Key::F2), "f3" => Some(Key::F3),
+        "f4" => Some(Key::F4), "f5" => Some(Key::F5), "f6" => Some(Key::F6),
+        "f7" => Some(Key::F7), "f8" => Some(Key::F8), "f9" => Some(Key::F9),
         "f10" => Some(Key::F10), "f11" => Some(Key::F11), "f12" => Some(Key::F12),
-        "space"              => Some(Key::Space),
-        "return" | "enter"  => Some(Key::Return),
-        "escape" | "esc"    => Some(Key::Escape),
-        "tab"               => Some(Key::Tab),
-        "delete" | "del"    => Some(Key::Delete),
-        "backspace"         => Some(Key::Backspace),
+        "space" => Some(Key::Space),
+        "return" | "enter" => Some(Key::Return),
+        "escape" | "esc" => Some(Key::Escape),
+        "tab" => Some(Key::Tab),
+        "delete" | "del" => Some(Key::Delete),
+        "backspace" => Some(Key::Backspace),
         _ => None,
     }
 }
 
 // keeps track of which keys are currently held and what combos to watch for
 struct HotkeyState {
-    held:            HashSet<Key>,
-    open_history:    Option<KeyCombo>,
-    open_snippets:   Option<KeyCombo>,
+    held: HashSet<Key>,
+    open_history: Option<KeyCombo>,
+    open_snippets: Option<KeyCombo>,
     clear_clipboard: Option<KeyCombo>,
-    paste_last:      Option<KeyCombo>,
-    incognito:       Option<KeyCombo>,
+    paste_last: Option<KeyCombo>,
+    incognito: Option<KeyCombo>,
     // the modifier part of ctrl+alt+1..9 for instant paste
-    instant_mod:     (bool, bool, bool), // (ctrl, alt, shift)
+    instant_mod: (bool, bool, bool), // (ctrl, alt, shift)
 }
 
 impl HotkeyState {
     fn from_config(cfg: &Config) -> Self {
         let hk = &cfg.hotkeys;
         let mod_parts: Vec<&str> = hk.instant_paste_mod.to_lowercase().split('+').collect();
-        let im_ctrl  = mod_parts.contains(&"ctrl") || mod_parts.contains(&"control");
-        let im_alt   = mod_parts.contains(&"alt");
+        let im_ctrl = mod_parts.contains(&"ctrl") || mod_parts.contains(&"control");
+        let im_alt = mod_parts.contains(&"alt");
         let im_shift = mod_parts.contains(&"shift");
         Self {
-            held:            HashSet::new(),
-            open_history:    KeyCombo::parse(&hk.open_history),
-            open_snippets:   KeyCombo::parse(&hk.open_snippets),
+            held: HashSet::new(),
+            open_history: KeyCombo::parse(&hk.open_history),
+            open_snippets: KeyCombo::parse(&hk.open_snippets),
             clear_clipboard: KeyCombo::parse(&hk.clear_clipboard),
-            paste_last:      KeyCombo::parse(&hk.paste_last),
-            incognito:       KeyCombo::parse(&hk.incognito),
-            instant_mod:     (im_ctrl, im_alt, im_shift),
+            paste_last: KeyCombo::parse(&hk.paste_last),
+            incognito: KeyCombo::parse(&hk.incognito),
+            instant_mod: (im_ctrl, im_alt, im_shift),
         }
     }
 
     // returns which slot to paste (1-9) if the instant-paste combo is active
     fn instant_paste_n(&self, key: &Key) -> Option<usize> {
         let (im_ctrl, im_alt, im_shift) = self.instant_mod;
-        let ctrl_ok  = im_ctrl  == (self.held.contains(&Key::ControlLeft) || self.held.contains(&Key::ControlRight));
-        let alt_ok   = im_alt   == (self.held.contains(&Key::Alt) || self.held.contains(&Key::AltGr));
+        let ctrl_ok = im_ctrl == (self.held.contains(&Key::ControlLeft) || self.held.contains(&Key::ControlRight));
+        let alt_ok = im_alt == (self.held.contains(&Key::Alt) || self.held.contains(&Key::AltGr));
         let shift_ok = im_shift == (self.held.contains(&Key::ShiftLeft) || self.held.contains(&Key::ShiftRight));
         if !(ctrl_ok && alt_ok && shift_ok) { return None; }
         match key {

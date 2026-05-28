@@ -39,16 +39,16 @@ pub enum AppEvent {
 
 // the main app state - everything lives in here
 struct ClipVaultApp {
-    store:    Arc<Mutex<Store>>,
-    config:   Arc<Mutex<Config>>,
+    store: Arc<Mutex<Store>>,
+    config: Arc<Mutex<Config>>,
     snippets: Arc<Mutex<SnippetStore>>,
     event_tx: Sender<AppEvent>,
     event_rx: Receiver<AppEvent>,
 
-    tray:         Option<Tray>,
-    overlay:      Overlay,
+    tray: Option<Tray>,
+    overlay: Overlay,
     show_overlay: bool,
-    palette:      Palette,
+    palette: Palette,
 
     // For periodic save
     last_save: Instant,
@@ -56,9 +56,9 @@ struct ClipVaultApp {
 
 impl ClipVaultApp {
     fn new(
-        cc:       &eframe::CreationContext,
-        store:    Arc<Mutex<Store>>,
-        config:   Arc<Mutex<Config>>,
+        cc: &eframe::CreationContext,
+        store: Arc<Mutex<Store>>,
+        config: Arc<Mutex<Config>>,
         snippets: Arc<Mutex<SnippetStore>>,
         event_tx: Sender<AppEvent>,
         event_rx: Receiver<AppEvent>,
@@ -167,9 +167,9 @@ impl ClipVaultApp {
     fn handle_tray_events(&mut self, ctx: &Context) {
         if let Some(id) = tray::poll_menu_event() {
             match id.as_str() {
-                ID_OPEN        => self.open_overlay(Tab::History),
-                ID_PASTE_LAST  => { let _ = self.event_tx.send(AppEvent::PasteLast); }
-                ID_PAUSE       => {
+                ID_OPEN => self.open_overlay(Tab::History),
+                ID_PASTE_LAST => { let _ = self.event_tx.send(AppEvent::PasteLast); }
+                ID_PAUSE => {
                     let mut s = self.store.lock().unwrap();
                     s.paused = !s.paused;
                     let paused = s.paused;
@@ -178,7 +178,7 @@ impl ClipVaultApp {
                         tray.set_paused(paused);
                     }
                 }
-                ID_CLEAR        => { self.store.lock().unwrap().clear(true); }
+                ID_CLEAR => { self.store.lock().unwrap().clear(true); }
                 ID_TOGGLE_START => {
                     // flip the auto_start setting, save it, and update the platform startup entry
                     let new_val = {
@@ -196,9 +196,9 @@ impl ClipVaultApp {
                         tray.set_auto_start(new_val);
                     }
                 }
-                ID_OPEN_CONFIG  => { Config::open_config_dir(); }
-                ID_QUIT         => { ctx.send_viewport_cmd(egui::ViewportCommand::Close); }
-                _               => {}
+                ID_OPEN_CONFIG => { Config::open_config_dir(); }
+                ID_QUIT => { ctx.send_viewport_cmd(egui::ViewportCommand::Close); }
+                _ => {}
             }
         }
     }
@@ -242,7 +242,7 @@ impl eframe::App for ClipVaultApp {
 
         if self.show_overlay {
             let snippets = Arc::clone(&self.snippets);
-            let action   = self.overlay.show(ctx, &self.store, &snippets, &self.config, &self.palette);
+            let action = self.overlay.show(ctx, &self.store, &snippets, &self.config, &self.palette);
 
             match action {
                 OverlayAction::None => {}
@@ -287,8 +287,8 @@ impl eframe::App for ClipVaultApp {
 
 // entry point - sets up the window and hands control to eframe
 pub fn run(
-    store:    Arc<Mutex<Store>>,
-    config:   Arc<Mutex<Config>>,
+    store: Arc<Mutex<Store>>,
+    config: Arc<Mutex<Config>>,
     event_tx: Sender<AppEvent>,
     event_rx: Receiver<AppEvent>,
 ) -> Result<()> {
@@ -313,56 +313,4 @@ pub fn run(
             .with_inner_size([viewport_w, viewport_h])
             .with_min_inner_size([360.0, 400.0])
             .with_decorations(false)
-            .with_always_on_top()
-            .with_icon(window_icon)
-            .with_visible(false),   // hidden by default, shows up when you hit the hotkey
-        ..Default::default()
-    };
-
-    eframe::run_native(
-        "ClipVault",
-        native_options,
-        Box::new(|cc| {
-            Box::new(ClipVaultApp::new(cc, store, config, snippets, event_tx, event_rx))
-        }),
-    )
-    .map_err(|e| anyhow::anyhow!("eframe error: {e}"))?;
-
-    Ok(())
-}
-
-// loads the best available icon from assets/ for the window titlebar/taskbar
-// tries 64px first (looks nicest), then 32px, then the big one
-fn load_window_icon() -> egui::IconData {
-    for path in &["assets/icon_64.png", "assets/icon_32.png", "assets/icon.png"] {
-        if let Ok(bytes) = std::fs::read(path) {
-            if let Ok(img) = image::load_from_memory(&bytes) {
-                let rgba   = img.to_rgba8();
-                let (w, h) = rgba.dimensions();
-                return egui::IconData {
-                    rgba:   rgba.into_raw(),
-                    width:  w,
-                    height: h,
-                };
-            }
-        }
-    }
-    // fallback solid blue square if assets folder is missing
-    let rgba: Vec<u8> = vec![0x4f, 0x8e, 0xf7, 0xff].repeat(32 * 32);
-    egui::IconData { rgba, width: 32, height: 32 }
-}
-
-// builds the color palette based on the user's theme setting
-fn build_palette(cfg: &Config) -> Palette {
-    let accent = parse_hex_color(&cfg.gui.accent_color);
-    let is_dark = match cfg.gui.theme.as_str() {
-        "light"  => false,
-        "system" => theme::system_is_dark(),
-        _        => true,  // "dark" or "custom", default to dark
-    };
-    if is_dark {
-        Palette::dark(accent)
-    } else {
-        Palette::light(accent)
-    }
-}
+            .with

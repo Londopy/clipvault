@@ -29,60 +29,60 @@ pub enum ContentType {
 // one entry in the clipboard history
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClipEntry {
-    pub id:           String,
+    pub id: String,
     pub content_type: ContentType,
     // for text: the actual text. for images: base64 webp thumbnail. for files: the path
-    pub data:         String,
+    pub data: String,
     // full res image path if we have it (images only)
-    pub image_path:   Option<PathBuf>,
-    pub source_app:   Option<String>,
-    pub timestamp:    DateTime<Utc>,
-    pub char_count:   Option<usize>,
-    pub is_pinned:    bool,
-    pub tags:         Vec<String>,
+    pub image_path: Option<PathBuf>,
+    pub source_app: Option<String>,
+    pub timestamp: DateTime<Utc>,
+    pub char_count: Option<usize>,
+    pub is_pinned: bool,
+    pub tags: Vec<String>,
 }
 
 impl ClipEntry {
     pub fn new_text(text: String, source_app: Option<String>) -> Self {
         let char_count = Some(text.chars().count());
         Self {
-            id:           Uuid::new_v4().to_string(),
+            id: Uuid::new_v4().to_string(),
             content_type: ContentType::Text,
-            data:         text,
-            image_path:   None,
+            data: text,
+            image_path: None,
             source_app,
-            timestamp:    Utc::now(),
+            timestamp: Utc::now(),
             char_count,
-            is_pinned:    false,
-            tags:         Vec::new(),
+            is_pinned: false,
+            tags: Vec::new(),
         }
     }
 
     pub fn new_image(thumbnail_b64: String, image_path: Option<PathBuf>, source_app: Option<String>) -> Self {
         Self {
-            id:           Uuid::new_v4().to_string(),
+            id: Uuid::new_v4().to_string(),
             content_type: ContentType::Image,
-            data:         thumbnail_b64,
+            data: thumbnail_b64,
             image_path,
             source_app,
-            timestamp:    Utc::now(),
-            char_count:   None,
-            is_pinned:    false,
-            tags:         Vec::new(),
+            timestamp: Utc::now(),
+            char_count: None,
+            is_pinned: false,
+            tags: Vec::new(),
         }
     }
 
     pub fn new_filepath(path: String, source_app: Option<String>) -> Self {
         Self {
-            id:           Uuid::new_v4().to_string(),
+            id: Uuid::new_v4().to_string(),
             content_type: ContentType::FilePath,
-            data:         path,
-            image_path:   None,
+            data: path,
+            image_path: None,
             source_app,
-            timestamp:    Utc::now(),
-            char_count:   None,
-            is_pinned:    false,
-            tags:         Vec::new(),
+            timestamp: Utc::now(),
+            char_count: None,
+            is_pinned: false,
+            tags: Vec::new(),
         }
     }
 
@@ -97,7 +97,7 @@ impl ClipEntry {
                     s
                 }
             }
-            ContentType::Image    => "📷 Image".into(),
+            ContentType::Image => "📷 Image".into(),
             ContentType::FilePath => format!("📄 {}", self.data),
         }
     }
@@ -106,29 +106,29 @@ impl ClipEntry {
 // this is what gets written to history.json
 #[derive(Serialize, Deserialize)]
 struct HistoryFile {
-    version:  u32,
-    entries:  Vec<ClipEntry>,
+    version: u32,
+    entries: Vec<ClipEntry>,
 }
 
 pub struct Store {
     // newest items at the front
-    pub history:   VecDeque<ClipEntry>,
-    pub max_size:  usize,
+    pub history: VecDeque<ClipEntry>,
+    pub max_size: usize,
     pub incognito: bool,
-    pub paused:    bool,
-    encrypt:       bool,
-    enc_key:       Option<[u8; 32]>,
+    pub paused: bool,
+    encrypt: bool,
+    enc_key: Option<[u8; 32]>,
 }
 
 impl Store {
     pub fn new(cfg: &Config) -> Self {
         Self {
-            history:   VecDeque::new(),
-            max_size:  cfg.general.history_limit,
+            history: VecDeque::new(),
+            max_size: cfg.general.history_limit,
             incognito: false,
-            paused:    false,
-            encrypt:   cfg.security.encrypt_history,
-            enc_key:   None,
+            paused: false,
+            encrypt: cfg.security.encrypt_history,
+            enc_key: None,
         }
     }
 
@@ -271,12 +271,12 @@ impl Store {
 
     fn encrypt_bytes(&self, data: &[u8]) -> Result<Vec<u8>> {
         let key_bytes = self.enc_key.ok_or_else(|| anyhow::anyhow!("no encryption key"))?;
-        let key    = Key::<Aes256Gcm>::from_slice(&key_bytes);
+        let key = Key::<Aes256Gcm>::from_slice(&key_bytes);
         let cipher = Aes256Gcm::new(key);
         // random nonce prepended to the ciphertext so we can decrypt later
         let mut nonce_bytes = [0u8; 12];
         OsRng.fill_bytes(&mut nonce_bytes);
-        let nonce      = Nonce::from_slice(&nonce_bytes);
+        let nonce = Nonce::from_slice(&nonce_bytes);
         let ciphertext = cipher.encrypt(nonce, data)
             .map_err(|e| anyhow::anyhow!("encrypt: {e}"))?;
         let mut out = nonce_bytes.to_vec();
@@ -287,10 +287,10 @@ impl Store {
     fn decrypt_bytes(&self, data: &[u8]) -> Result<Vec<u8>> {
         let key_bytes = self.enc_key.ok_or_else(|| anyhow::anyhow!("no encryption key"))?;
         anyhow::ensure!(data.len() > 12, "ciphertext too short");
-        let key    = Key::<Aes256Gcm>::from_slice(&key_bytes);
+        let key = Key::<Aes256Gcm>::from_slice(&key_bytes);
         let cipher = Aes256Gcm::new(key);
-        let nonce  = Nonce::from_slice(&data[..12]);
-        let plain  = cipher.decrypt(nonce, &data[12..])
+        let nonce = Nonce::from_slice(&data[..12]);
+        let plain = cipher.decrypt(nonce, &data[12..])
             .map_err(|e| anyhow::anyhow!("decrypt: {e}"))?;
         Ok(plain)
     }
@@ -309,9 +309,9 @@ impl Store {
 
 // helper for pushing a text entry from outside the store
 pub fn push_text(
-    store:       &Arc<Mutex<Store>>,
-    text:        String,
-    source_app:  Option<String>,
+    store: &Arc<Mutex<Store>>,
+    text: String,
+    source_app: Option<String>,
     deduplicate: bool,
 ) -> bool {
     let entry = ClipEntry::new_text(text, source_app);

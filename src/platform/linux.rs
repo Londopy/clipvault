@@ -94,7 +94,7 @@ fn xdg_autostart() {
         let _ = std::fs::create_dir_all(parent);
     }
     match std::fs::write(&desktop_path, desktop) {
-        Ok(_)  => debug!("XDG autostart installed: {}", desktop_path.display()),
+        Ok(_) => debug!("XDG autostart installed: {}", desktop_path.display()),
         Err(e) => warn!("XDG autostart failed: {e}"),
     }
 }
@@ -111,5 +111,3 @@ fn xdg_autostart_path() -> PathBuf {
     dirs::config_dir()
         .unwrap_or_else(|| PathBuf::from(".config"))
         .join("autostart")
-        .join("clipvault.desktop")
-}

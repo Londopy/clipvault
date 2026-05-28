@@ -35,25 +35,25 @@ pub enum Transform {
 impl Transform {
     pub fn label(&self) -> &'static str {
         match self {
-            Transform::Uppercase         => "UPPERCASE",
-            Transform::Lowercase         => "lowercase",
-            Transform::TitleCase         => "Title Case",
-            Transform::SentenceCase      => "Sentence case",
-            Transform::TrimWhitespace    => "Trim Whitespace",
-            Transform::CollapseNewlines  => "Collapse Newlines",
-            Transform::UrlEncode         => "URL Encode",
-            Transform::UrlDecode         => "URL Decode",
-            Transform::Base64Encode      => "Base64 Encode",
-            Transform::Base64Decode      => "Base64 Decode",
-            Transform::JsonPrettify      => "JSON Prettify",
-            Transform::JsonMinify        => "JSON Minify",
-            Transform::HexEncode         => "Hex Encode",
-            Transform::HexDecode         => "Hex Decode",
-            Transform::HashMd5           => "MD5 Hash",
-            Transform::HashSha1          => "SHA-1 Hash",
-            Transform::HashSha256        => "SHA-256 Hash",
+            Transform::Uppercase => "UPPERCASE",
+            Transform::Lowercase => "lowercase",
+            Transform::TitleCase => "Title Case",
+            Transform::SentenceCase => "Sentence case",
+            Transform::TrimWhitespace => "Trim Whitespace",
+            Transform::CollapseNewlines => "Collapse Newlines",
+            Transform::UrlEncode => "URL Encode",
+            Transform::UrlDecode => "URL Decode",
+            Transform::Base64Encode => "Base64 Encode",
+            Transform::Base64Decode => "Base64 Decode",
+            Transform::JsonPrettify => "JSON Prettify",
+            Transform::JsonMinify => "JSON Minify",
+            Transform::HexEncode => "Hex Encode",
+            Transform::HexDecode => "Hex Decode",
+            Transform::HashMd5 => "MD5 Hash",
+            Transform::HashSha1 => "SHA-1 Hash",
+            Transform::HashSha256 => "SHA-256 Hash",
             Transform::CharWordLineCount => "Count chars/words/lines",
-            Transform::StripHtml         => "Strip HTML",
+            Transform::StripHtml => "Strip HTML",
             Transform::RegexReplace { .. } => "Regex Replace",
         }
     }
@@ -189,7 +189,7 @@ fn title_case(s: &str) -> String {
         .map(|w| {
             let mut chars = w.chars();
             match chars.next() {
-                None    => String::new(),
+                None => String::new(),
                 Some(c) => c.to_uppercase().collect::<String>() + chars.as_str(),
             }
         })
@@ -201,7 +201,7 @@ fn sentence_case(s: &str) -> String {
     let lower = s.to_lowercase();
     let mut chars = lower.chars();
     match chars.next() {
-        None    => String::new(),
+        None => String::new(),
         Some(c) => c.to_uppercase().collect::<String>() + chars.as_str(),
     }
 }
@@ -224,8 +224,8 @@ mod tests {
     #[test]
     fn test_base64_roundtrip() {
         let original = "Hello, ClipVault!";
-        let encoded  = apply(original, &Transform::Base64Encode).unwrap();
-        let decoded  = apply(&encoded, &Transform::Base64Decode).unwrap();
+        let encoded = apply(original, &Transform::Base64Encode).unwrap();
+        let decoded = apply(&encoded, &Transform::Base64Decode).unwrap();
         assert_eq!(decoded, original);
     }
 

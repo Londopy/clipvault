@@ -10,33 +10,33 @@ use tray_icon::{
 };
 
 // string ids for each menu item - we match against these later
-pub const ID_OPEN:         &str = "open";
-pub const ID_PASTE_LAST:   &str = "paste_last";
-pub const ID_PAUSE:        &str = "pause";
-pub const ID_CLEAR:        &str = "clear";
-pub const ID_OPEN_CONFIG:  &str = "open_config";
+pub const ID_OPEN: &str = "open";
+pub const ID_PASTE_LAST: &str = "paste_last";
+pub const ID_PAUSE: &str = "pause";
+pub const ID_CLEAR: &str = "clear";
+pub const ID_OPEN_CONFIG: &str = "open_config";
 pub const ID_TOGGLE_START: &str = "toggle_startup";
-pub const ID_QUIT:         &str = "quit";
+pub const ID_QUIT: &str = "quit";
 
 pub struct Tray {
-    _icon:         TrayIcon,
-    item_pause:    MenuItem, // need to hold onto this so we can change its label
-    item_startup:  MenuItem, // same for the launch at login toggle
+    _icon: TrayIcon,
+    item_pause: MenuItem, // need to hold onto this so we can change its label
+    item_startup: MenuItem, // same for the launch at login toggle
 }
 
 impl Tray {
     pub fn new(auto_start: bool) -> Result<Self> {
         let icon = load_icon();
 
-        let item_open    = MenuItem::with_id(ID_OPEN,        "Open ClipVault",  true, None);
-        let item_paste_last  = MenuItem::with_id(ID_PASTE_LAST, "Paste Last Item", true, None);
-        let item_pause   = MenuItem::with_id(ID_PAUSE,       "Pause Recording", true, None);
-        let item_clear   = MenuItem::with_id(ID_CLEAR,       "Clear History",   true, None);
+        let item_open = MenuItem::with_id(ID_OPEN, "Open ClipVault", true, None);
+        let item_paste_last = MenuItem::with_id(ID_PASTE_LAST, "Paste Last Item", true, None);
+        let item_pause = MenuItem::with_id(ID_PAUSE, "Pause Recording", true, None);
+        let item_clear = MenuItem::with_id(ID_CLEAR, "Clear History", true, None);
         let item_open_config = MenuItem::with_id(ID_OPEN_CONFIG, "Open Config Folder", true, None);
         // shows a checkmark when startup is enabled
         let startup_label = if auto_start { "✓ Launch at Login" } else { "Launch at Login" };
         let item_startup = MenuItem::with_id(ID_TOGGLE_START, startup_label, true, None);
-        let item_quit    = MenuItem::with_id(ID_QUIT,        "Quit",            true, None);
+        let item_quit = MenuItem::with_id(ID_QUIT, "Quit", true, None);
 
         let menu = Menu::with_items(&[
             &item_open,
@@ -79,23 +79,4 @@ impl Tray {
 
 // checks if there's a menu click waiting and returns the id string if so
 pub fn poll_menu_event() -> Option<String> {
-    MenuEvent::receiver().try_recv().ok().map(|e| e.id.0.clone())
-}
-
-fn load_icon() -> tray_icon::Icon {
-    // try the dedicated 32px tray icon first, then fall back to the main png
-    for path in &["assets/icon_32.png", "assets/icon.png"] {
-        if let Ok(bytes) = std::fs::read(path) {
-            if let Ok(img) = image::load_from_memory(&bytes) {
-                let rgba   = img.to_rgba8();
-                let (w, h) = rgba.dimensions();
-                if let Ok(icon) = tray_icon::Icon::from_rgba(rgba.into_raw(), w, h) {
-                    return icon;
-                }
-            }
-        }
-    }
-    // last resort: solid blue 32x32 square so we don't crash if assets are missing
-    let rgba: Vec<u8> = vec![0x4f_u8, 0x8e, 0xf7, 0xff].repeat(32 * 32);
-    tray_icon::Icon::from_rgba(rgba, 32, 32).expect("placeholder icon")
-}
+    MenuEvent::receiver().try_recv().ok().map

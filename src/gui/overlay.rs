@@ -27,8 +27,8 @@ impl Tab {
     // tab key cycles through the content tabs but skips settings
     pub fn next(&self) -> Tab {
         match self {
-            Tab::History  => Tab::Pinned,
-            Tab::Pinned   => Tab::Snippets,
+            Tab::History => Tab::Pinned,
+            Tab::Pinned => Tab::Snippets,
             Tab::Snippets => Tab::History,
             Tab::Settings => Tab::History,
         }
@@ -37,44 +37,44 @@ impl Tab {
 
 // state for the transform popup (uppercase, base64, etc)
 pub struct TransformMenu {
-    pub open:         bool,
-    pub entry_id:     Option<String>,
+    pub open: bool,
+    pub entry_id: Option<String>,
     pub regex_pattern: String,
     pub regex_replace: String,
-    pub result:       Option<Result<String, String>>,
+    pub result: Option<Result<String, String>>,
 }
 
 impl Default for TransformMenu {
     fn default() -> Self {
         Self {
-            open:          false,
-            entry_id:      None,
+            open: false,
+            entry_id: None,
             regex_pattern: String::new(),
             regex_replace: String::new(),
-            result:        None,
+            result: None,
         }
     }
 }
 
 // all the ui state for the overlay - search query, selected row, etc
 pub struct Overlay {
-    pub tab:            Tab,
-    pub search_query:   String,
-    pub selected_idx:   usize,
-    pub focus_search:   bool,
+    pub tab: Tab,
+    pub search_query: String,
+    pub selected_idx: usize,
+    pub focus_search: bool,
     pub transform_menu: TransformMenu,
-    matcher:            SkimMatcherV2,
+    matcher: SkimMatcherV2,
 }
 
 impl Default for Overlay {
     fn default() -> Self {
         Self {
-            tab:            Tab::History,
-            search_query:   String::new(),
-            selected_idx:   0,
-            focus_search:   false,
+            tab: Tab::History,
+            search_query: String::new(),
+            selected_idx: 0,
+            focus_search: false,
             transform_menu: TransformMenu::default(),
-            matcher:        SkimMatcherV2::default(),
+            matcher: SkimMatcherV2::default(),
         }
     }
 }
@@ -82,15 +82,15 @@ impl Default for Overlay {
 // what the overlay wants to do after this frame
 pub enum OverlayAction {
     None,
-    PasteEntry(String),   // user picked something to paste
-    DeleteEntry(String),  // user deleted an entry (by id)
-    Close,                // user pressed escape or clicked away
-    SettingsChanged,      // user toggled something in settings - parent should rebuild palette etc
+    PasteEntry(String), // user picked something to paste
+    DeleteEntry(String), // user deleted an entry (by id)
+    Close, // user pressed escape or clicked away
+    SettingsChanged, // user toggled something in settings - parent should rebuild palette etc
 }
 
 impl Overlay {
     pub fn reset_for_open(&mut self, initial_tab: Tab) {
-        self.tab          = initial_tab;
+        self.tab = initial_tab;
         self.search_query = String::new();
         self.selected_idx = 0;
         self.focus_search = false;
@@ -98,11 +98,11 @@ impl Overlay {
 
     pub fn show(
         &mut self,
-        ctx:      &Context,
-        store:    &Arc<Mutex<Store>>,
+        ctx: &Context,
+        store: &Arc<Mutex<Store>>,
         snippets: &Arc<Mutex<SnippetStore>>,
-        config:   &Arc<Mutex<Config>>,
-        palette:  &Palette,
+        config: &Arc<Mutex<Config>>,
+        palette: &Palette,
     ) -> OverlayAction {
         let mut action = OverlayAction::None;
 
@@ -121,25 +121,25 @@ impl Overlay {
 
     fn draw_content(
         &mut self,
-        ui:       &mut Ui,
-        store:    &Arc<Mutex<Store>>,
+        ui: &mut Ui,
+        store: &Arc<Mutex<Store>>,
         snippets: &Arc<Mutex<SnippetStore>>,
-        config:   &Arc<Mutex<Config>>,
-        palette:  &Palette,
+        config: &Arc<Mutex<Config>>,
+        palette: &Palette,
     ) -> OverlayAction {
         let mut action = OverlayAction::None;
 
         // ── Header / tabs ─────────────────────────────────────────────────────
         ui.horizontal(|ui| {
             for (tab, label) in [
-                (Tab::History,  "History"),
-                (Tab::Pinned,   "Pinned"),
+                (Tab::History, "History"),
+                (Tab::Pinned, "Pinned"),
                 (Tab::Snippets, "Snippets"),
             ] {
                 let selected = self.tab == tab;
                 let text = RichText::new(label).color(if selected { palette.accent } else { palette.text_dim });
                 if ui.selectable_label(selected, text).clicked() {
-                    self.tab          = tab;
+                    self.tab = tab;
                     self.selected_idx = 0;
                 }
             }
@@ -243,16 +243,16 @@ impl Overlay {
 
     fn draw_entry_list(
         &mut self,
-        ui:        &mut Ui,
-        entries:   &[ClipEntry],
-        palette:   &Palette,
+        ui: &mut Ui,
+        entries: &[ClipEntry],
+        palette: &Palette,
         max_items: usize,
-        show_ts:   bool,
-        show_app:  bool,
+        show_ts: bool,
+        show_app: bool,
         _is_pinned: bool,
     ) -> OverlayAction {
         let mut action = OverlayAction::None;
-        let filtered   = self.filtered_entries(entries);
+        let filtered = self.filtered_entries(entries);
 
         ScrollArea::vertical()
             .max_height(max_items as f32 * 44.0)
@@ -316,7 +316,7 @@ impl Overlay {
                             ui.close_menu();
                         }
                         if ui.button("Transforms…").clicked() {
-                            self.transform_menu.open     = true;
+                            self.transform_menu.open = true;
                             self.transform_menu.entry_id = Some(entry.id.clone());
                             ui.close_menu();
                         }
@@ -331,9 +331,9 @@ impl Overlay {
 
     fn draw_snippets_list(
         &mut self,
-        ui:        &mut Ui,
-        snippets:  &Arc<Mutex<SnippetStore>>,
-        palette:   &Palette,
+        ui: &mut Ui,
+        snippets: &Arc<Mutex<SnippetStore>>,
+        palette: &Palette,
         max_items: usize,
     ) -> OverlayAction {
         let mut action = OverlayAction::None;
@@ -353,8 +353,8 @@ impl Overlay {
             .max_height(max_items as f32 * 44.0)
             .show(ui, |ui| {
                 for (idx, sn) in filtered.iter().enumerate().take(max_items) {
-                    let selected  = idx == self.selected_idx;
-                    let bg_color  = if selected { palette.bg_highlight } else { palette.bg_secondary };
+                    let selected = idx == self.selected_idx;
+                    let bg_color = if selected { palette.bg_highlight } else { palette.bg_secondary };
 
                     let item_resp = egui::Frame::none()
                         .fill(bg_color)
@@ -390,9 +390,9 @@ impl Overlay {
 
     fn draw_settings(
         &mut self,
-        ui:      &mut Ui,
-        config:  &Arc<Mutex<Config>>,
-        store:   &Arc<Mutex<Store>>,
+        ui: &mut Ui,
+        config: &Arc<Mutex<Config>>,
+        store: &Arc<Mutex<Store>>,
         palette: &Palette,
     ) -> OverlayAction {
         let mut changed = false;
@@ -571,8 +571,8 @@ impl Overlay {
 
     fn draw_transform_menu(
         &mut self,
-        ui:     &mut Ui,
-        store:  &Arc<Mutex<Store>>,
+        ui: &mut Ui,
+        store: &Arc<Mutex<Store>>,
         palette: &Palette,
     ) -> OverlayAction {
         let mut action = OverlayAction::None;
@@ -586,213 +586,4 @@ impl Overlay {
                     store.lock().unwrap().history.iter().find(|e| &e.id == id).map(|e| e.data.clone())
                 });
 
-                if let Some(data) = entry_data {
-                    // show buttons for each transform
-                    for t in Transform::all_simple() {
-                        if ui.button(t.label()).clicked() {
-                            match apply_transform(&data, &t) {
-                                Ok(result) => {
-                                    self.transform_menu.result = Some(Ok(result.clone()));
-                                    action = OverlayAction::PasteEntry(result);
-                                    self.transform_menu.open = false;
-                                }
-                                Err(e) => {
-                                    self.transform_menu.result = Some(Err(e.to_string()));
-                                }
-                            }
-                        }
-                    }
-
-                    ui.separator();
-                    ui.label(RichText::new("Regex Replace").color(palette.text));
-                    ui.horizontal(|ui| {
-                        ui.label("Pattern:");
-                        ui.text_edit_singleline(&mut self.transform_menu.regex_pattern);
-                    });
-                    ui.horizontal(|ui| {
-                        ui.label("Replace:");
-                        ui.text_edit_singleline(&mut self.transform_menu.regex_replace);
-                    });
-                    if ui.button("Apply Regex").clicked() {
-                        let t = Transform::RegexReplace {
-                            pattern:     self.transform_menu.regex_pattern.clone(),
-                            replacement: self.transform_menu.regex_replace.clone(),
-                        };
-                        match apply_transform(&data, &t) {
-                            Ok(result) => {
-                                action = OverlayAction::PasteEntry(result);
-                                self.transform_menu.open = false;
-                            }
-                            Err(e) => {
-                                self.transform_menu.result = Some(Err(e.to_string()));
-                            }
-                        }
-                    }
-                }
-
-                // show errors in red if a transform fails
-                if let Some(Err(ref err)) = self.transform_menu.result {
-                    ui.label(RichText::new(format!("Error: {err}")).color(palette.danger));
-                }
-
-                ui.separator();
-                if ui.button("Cancel").clicked() {
-                    self.transform_menu.open   = false;
-                    self.transform_menu.result = None;
-                }
-            });
-
-        action
-    }
-
-    fn handle_keyboard(
-        &mut self,
-        ui:       &mut Ui,
-        store:    &Arc<Mutex<Store>>,
-        snippets: &Arc<Mutex<SnippetStore>>,
-    ) -> OverlayAction {
-        let ctx = ui.ctx();
-
-        // escape closes the overlay
-        if ctx.input(|i| i.key_pressed(Key::Escape)) {
-            return OverlayAction::Close;
-        }
-
-        // tab cycles between history/pinned/snippets tabs
-        if ctx.input(|i| i.key_pressed(Key::Tab) && i.modifiers == Modifiers::NONE) {
-            self.tab          = self.tab.next();
-            self.selected_idx = 0;
-        }
-
-        // arrow keys move the selection up and down
-        let total = self.current_count(store, snippets);
-        if ctx.input(|i| i.key_pressed(Key::ArrowDown)) {
-            if self.selected_idx + 1 < total {
-                self.selected_idx += 1;
-            }
-        }
-        if ctx.input(|i| i.key_pressed(Key::ArrowUp)) {
-            self.selected_idx = self.selected_idx.saturating_sub(1);
-        }
-
-        // enter pastes the selected item
-        if ctx.input(|i| i.key_pressed(Key::Enter)) {
-            if let Some(data) = self.selected_data(store, snippets) {
-                return OverlayAction::PasteEntry(data);
-            }
-        }
-
-        // delete removes the selected item
-        if ctx.input(|i| i.key_pressed(Key::Delete)) {
-            if let Some(id) = self.selected_id(store) {
-                return OverlayAction::DeleteEntry(id);
-            }
-        }
-
-        // / jumps focus to the search box
-        if ctx.input(|i| i.key_pressed(Key::Slash)) {
-            self.focus_search = true;
-        }
-
-        // p pins or unpins the selected item
-        if ctx.input(|i| i.key_pressed(Key::P) && i.modifiers == Modifiers::NONE) {
-            if let Some(id) = self.selected_id(store) {
-                store.lock().unwrap().toggle_pin(&id);
-            }
-        }
-
-        // e opens the transforms menu for the selected item
-        if ctx.input(|i| i.key_pressed(Key::E) && i.modifiers == Modifiers::NONE) {
-            if let Some(id) = self.selected_id(store) {
-                self.transform_menu.open     = true;
-                self.transform_menu.entry_id = Some(id);
-            }
-        }
-
-        // 1-9 instant-paste by position
-        for (key, idx) in [
-            (Key::Num1, 0), (Key::Num2, 1), (Key::Num3, 2),
-            (Key::Num4, 3), (Key::Num5, 4), (Key::Num6, 5),
-            (Key::Num7, 6), (Key::Num8, 7), (Key::Num9, 8),
-        ] {
-            if ctx.input(|i| i.key_pressed(key) && i.modifiers == Modifiers::NONE) {
-                let entries = self.all_current_entries(store, snippets);
-                if let Some(data) = entries.get(idx) {
-                    return OverlayAction::PasteEntry(data.clone());
-                }
-            }
-        }
-
-        OverlayAction::None
-    }
-
-    // returns entries matching the current search query, sorted by fuzzy score
-    fn filtered_entries<'a>(&self, entries: &'a [ClipEntry]) -> Vec<&'a ClipEntry> {
-        let q = self.search_query.trim();
-        if q.is_empty() {
-            return entries.iter().collect();
-        }
-        let mut scored: Vec<(i64, &ClipEntry)> = entries.iter()
-            .filter_map(|e| {
-                self.matcher.fuzzy_match(&e.data, q)
-                    .map(|score| (score, e))
-            })
-            .collect();
-        scored.sort_by(|a, b| b.0.cmp(&a.0));
-        scored.into_iter().map(|(_, e)| e).collect()
-    }
-
-    fn current_count(&self, store: &Arc<Mutex<Store>>, snippets: &Arc<Mutex<SnippetStore>>) -> usize {
-        match self.tab {
-            Tab::History  => store.lock().unwrap().history.iter().filter(|e| !e.is_pinned).count(),
-            Tab::Pinned   => store.lock().unwrap().history.iter().filter(|e| e.is_pinned).count(),
-            Tab::Snippets => snippets.lock().unwrap().snippets.len(),
-            Tab::Settings => 0,
-        }
-    }
-
-    fn selected_id(&self, store: &Arc<Mutex<Store>>) -> Option<String> {
-        let s = store.lock().unwrap();
-        let entries: Vec<&ClipEntry> = match self.tab {
-            Tab::History  => s.history.iter().filter(|e| !e.is_pinned).collect(),
-            Tab::Pinned   => s.history.iter().filter(|e| e.is_pinned).collect(),
-            Tab::Snippets | Tab::Settings => return None,
-        };
-        entries.get(self.selected_idx).map(|e| e.id.clone())
-    }
-
-    fn selected_data(&self, store: &Arc<Mutex<Store>>, snippets: &Arc<Mutex<SnippetStore>>) -> Option<String> {
-        match self.tab {
-            Tab::Snippets => {
-                snippets.lock().unwrap().snippets.get(self.selected_idx)
-                    .map(|s| s.expanded_content())
-            }
-            Tab::Settings => None,
-            _ => {
-                let s = store.lock().unwrap();
-                let entries: Vec<&ClipEntry> = match self.tab {
-                    Tab::History => s.history.iter().filter(|e| !e.is_pinned).collect(),
-                    Tab::Pinned  => s.history.iter().filter(|e| e.is_pinned).collect(),
-                    _ => unreachable!(),
-                };
-                entries.get(self.selected_idx).map(|e| e.data.clone())
-            }
-        }
-    }
-
-    fn all_current_entries(&self, store: &Arc<Mutex<Store>>, snippets: &Arc<Mutex<SnippetStore>>) -> Vec<String> {
-        match self.tab {
-            Tab::Snippets => {
-                snippets.lock().unwrap().snippets.iter().map(|s| s.expanded_content()).collect()
-            }
-            Tab::Settings => Vec::new(),
-            _ => {
-                let s = store.lock().unwrap();
-                s.history.iter()
-                    .filter(|e| if self.tab == Tab::History { !e.is_pinned } else { e.is_pinned })
-                    .map(|e| e.data.clone())
-                    .collect()
-            }
-        }
-    }
-}
+                if let Some(d
