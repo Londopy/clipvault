@@ -1,0 +1,81 @@
+= Contributing to ClipVault
+
+Thank you for taking the time to contribute!
+This document explains how to get started and what we expect from contributors.
+
+== Code of Conduct
+
+Be respectful and constructive.
+Harassment of any kind will not be tolerated.
+
+== Ways to contribute
+
+* **Bug reports** — open an issue with steps to reproduce, expected vs actual behaviour, and your OS + version.
+* **Feature requests** — open an issue describing the problem you're trying to solve (not just the solution).
+* **Pull requests** — welcomed for bug fixes, documentation, and features that align with the project roadmap.
+* **Testing** — run ClipVault on platforms we don't have access to and report findings.
+
+== Development setup
+
+[source,shell]
+----
+git clone https://github.com/Londopy/clipvault.git
+cd clipvault
+
+# Install Linux system deps (Ubuntu / Debian)
+sudo apt-get install -y \
+  libx11-dev libxi-dev libxtst-dev \
+  libdbus-1-dev pkg-config libssl-dev \
+  libxdo-dev libgtk-3-dev
+
+# Build
+cargo build
+
+# Run tests
+cargo test --all
+
+# Lint (must pass before opening a PR)
+cargo clippy -- -D warnings
+cargo fmt --check
+----
+
+== Pull request checklist
+
+Before opening a PR, please confirm:
+
+* [ ] `cargo clippy -- -D warnings` passes
+* [ ] `cargo fmt` has been run
+* [ ] `cargo test --all` passes
+* [ ] New public APIs have doc comments
+* [ ] If behaviour changed, `CHANGELOG.adoc` has an entry under `[Unreleased]`
+* [ ] The PR description explains *what* changed and *why*
+
+== Branching model
+
+[cols="1,2",options="header"]
+|===
+|Branch |Purpose
+|`main`    |Always releasable. Direct commits forbidden.
+|`dev`     |Integration branch for next release.
+|`feature/*` |Individual feature work, branched from `dev`.
+|`fix/*`   |Bug fixes, may branch from `main` for hotfixes.
+|===
+
+== Commit style
+
+Use imperative mood, present tense:
+
+----
+Add fuzzy search highlight to overlay list
+Fix paste timing race on Windows
+Refactor store encryption key derivation
+----
+
+Keep commits small and focused. One logical change per commit.
+
+== Licensing
+
+By submitting a pull request, you agree that your contribution will be
+licensed under the same link:LICENSE[MIT License] that covers this project.
+If you are contributing on behalf of an employer, ensure you have permission
+to do so.

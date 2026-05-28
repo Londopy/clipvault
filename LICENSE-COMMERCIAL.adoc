@@ -1,0 +1,76 @@
+= ClipVault Commercial License
+:doctype: article
+
+Copyright (C) 2026 Londopy. All rights reserved.
+
+== Grant of License
+
+Subject to the terms of this Commercial License Agreement ("Agreement") and
+payment of the applicable license fee, Londopy ("Licensor") grants
+you ("Licensee") a non-exclusive, non-transferable, worldwide license to:
+
+1. Use ClipVault and its source code in commercial and proprietary products
+   and services.
+2. Distribute ClipVault as part of a larger commercial product, provided the
+   ClipVault source code itself is not distributed separately in a way that
+   competes with the Licensor's commercial offering.
+3. Modify ClipVault for internal use within Licensee's organisation.
+
+== Restrictions
+
+The Licensee may **not**:
+
+1. Resell, sublicense, or redistribute ClipVault as a standalone product or
+   library without prior written consent from the Licensor.
+2. Remove or alter any copyright, trademark, or proprietary notices contained
+   in ClipVault.
+3. Use the Licensor's name, logo, or trademarks to endorse or promote products
+   derived from ClipVault without prior written permission.
+4. Use ClipVault in any product that directly competes with the Licensor's own
+   commercial clipboard management products.
+
+== Fees and Payment
+
+Commercial license fees are determined on a per-organisation basis.
+
+A signed agreement is required before commercial use begins. This document is
+informational only and does not constitute a binding license grant.
+
+== Support and Updates
+
+Unless otherwise agreed in writing, this license does not include:
+
+* Priority support or guaranteed response times.
+* Access to unreleased or beta versions.
+* Custom development or integration services.
+
+These may be purchased separately. Contact the Licensor for details.
+
+== Disclaimer of Warranties
+
+ClipVault is provided "as is" without warranty of any kind, express or implied,
+including but not limited to the warranties of merchantability, fitness for a
+particular purpose, and non-infringement. In no event shall the Licensor be
+liable for any claim, damages, or other liability arising from the use of
+ClipVault.
+
+== Termination
+
+This license is effective until terminated. It terminates automatically if
+Licensee breaches any term of this Agreement. Upon termination, Licensee must
+cease all use of ClipVault and destroy all copies in its possession.
+
+== Governing Law
+
+This Agreement shall be governed by and construed in accordance with the laws
+of the jurisdiction in which the Licensor is domiciled, without regard to its
+conflict of law provisions.
+
+== Contact
+
+To obtain a commercial license, open an issue or discussion at:
+https://github.com/Londopy/clipvault
+
+---
+_This document describes the terms under which a commercial license may be
+granted. It is not a binding contract until signed by both parties._

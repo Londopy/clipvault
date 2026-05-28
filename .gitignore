@@ -1,0 +1,76 @@
+# ── Rust build artefacts ──────────────────────────────────────────────────────
+/target/
+Cargo.lock          # keep for binaries (remove this line if you want to commit it)
+
+# ── Compiled output ───────────────────────────────────────────────────────────
+*.exe
+*.dll
+*.so
+*.dylib
+*.pdb
+*.d
+
+# ── Release packages ──────────────────────────────────────────────────────────
+*.zip
+*.tar.gz
+*.tar.xz
+*.dmg
+*.msi
+*.deb
+*.rpm
+checksums.txt
+
+# ── IDE / editor ──────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.iml
+*.iws
+*.ipr
+.fleet/
+*.swp
+*.swo
+*~
+
+# ── macOS ─────────────────────────────────────────────────────────────────────
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.Spotlight-V100
+.Trashes
+
+# ── Windows ───────────────────────────────────────────────────────────────────
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# ── Linux ─────────────────────────────────────────────────────────────────────
+.directory
+.Trash-*
+
+# ── User data (never commit clipboard history or config) ──────────────────────
+history.json
+history.key
+config.toml
+snippets.json
+
+# ── Secrets / credentials ─────────────────────────────────────────────────────
+.env
+.env.*
+*.pem
+*.p12
+*.key
+secrets/
+
+# ── Profiling / benchmarks ────────────────────────────────────────────────────
+perf.data
+perf.data.old
+flamegraph.svg
+cachegrind.out.*
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+*.log

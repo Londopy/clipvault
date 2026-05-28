@@ -1,0 +1,30 @@
+= Changelog
+:toc:
+:toc-placement: preamble
+
+All notable changes to ClipVault are documented here.
+This project adheres to https://semver.org/[Semantic Versioning] and
+https://keepachangelog.com/[Keep a Changelog] conventions.
+
+== [Unreleased]
+
+=== Added
+* Initial project scaffold — all 9 build phases implemented
+* Clipboard daemon with ring buffer, deduplication, and AES-256-GCM encryption
+* Global hotkey system (rdev) with fully rebindable keybinds
+* egui overlay — History, Pinned, Snippets tabs with fuzzy search and preview pane
+* 19 built-in text transforms including regex find-and-replace and SHA-256 hash
+* Snippets system with shortcode expansion, categories, and JSON import/export
+* Platform-native desktop notifications (WinRT / UserNotifications / libnotify)
+* Discord Rich Presence with live item count and session timer
+* GitHub Releases auto-updater with SHA-256 checksum verification
+* System tray icon with item-count badge and pause mode
+* Cross-platform startup registration (registry / LaunchAgent / systemd)
+* App exclusion list and password-field heuristic masking
+* Incognito mode with hotkey toggle
+* CI workflow: clippy, rustfmt, cargo test, cargo audit on all three platforms
+* Release workflow: 5-target build matrix, checksums.txt, cosign signing, GitHub Release publish
+
+== [0.1.0] — TBD
+
+_First public release._

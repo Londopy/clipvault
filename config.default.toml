@@ -1,0 +1,54 @@
+# clipvault default config
+# copy this to ~/.config/clipvault/config.toml (or %APPDATA%\clipvault\config.toml on windows)
+# and change whatever you want - everything here is already the default so you only need to add
+# the lines you actually want to override
+
+[general]
+history_limit      = 200        # how many items to keep (max 10000)
+persist_history    = true       # save to disk so you don't lose everything on restart
+deduplicate        = true       # don't add something if it's the same as the last item
+auto_start         = true       # launch at login
+pause_on_lock      = false      # stop recording when screen locks (useful for shared computers)
+auto_clear_hours   = 0          # clear old entries after N hours, 0 means never
+
+[hotkeys]
+open_history       = "ctrl+shift+v"
+open_snippets      = "ctrl+shift+c"
+clear_clipboard    = "ctrl+shift+x"
+paste_last         = "ctrl+shift+p"
+instant_paste_mod  = "ctrl+alt"   # hold this + 1-9 to paste that slot instantly
+incognito          = "ctrl+shift+i"
+
+[gui]
+position           = "cursor"   # where the overlay pops up: "cursor" | "center" | "top-right" | "top-left"
+theme              = "dark"     # "dark" | "light" | "system" | "custom"
+accent_color       = "#4f8ef7"
+max_visible_items  = 12
+show_timestamps    = true
+show_source_app    = true
+animate_open       = true
+
+[notifications]
+enabled            = true
+on_copy            = true
+on_paste           = false
+on_update          = true
+duration_ms        = 2500
+sound              = false
+
+[discord]
+rich_presence      = true
+application_id     = "REPLACE_WITH_YOUR_APP_ID"  # your discord application's numeric id
+
+[updater]
+enabled            = true
+channel            = "stable"   # "stable" or "beta"
+check_on_startup   = true
+auto_install       = false      # set to true to update silently without asking
+
+[security]
+excluded_apps      = ["1Password", "KeePassXC", "Bitwarden"]
+mask_passwords     = true       # tries to detect and hide passwords using a heuristic
+encrypt_history    = false      # encrypts the history file with AES-256-GCM
+incognito_hotkey   = "ctrl+shift+i"
+auto_clear_on_lock = false
