@@ -113,3 +113,6 @@ fn show_filepath_preview(ui: &mut Ui, entry: &ClipEntry, palette: &Palette) {
             ui.label(RichText::new(format!("Size: {size_str}")).color(palette.text_dim).small());
         }
     } else {
+        ui.label(RichText::new("✗ File not found").color(palette.danger).small());
+    }
+}

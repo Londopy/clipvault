@@ -79,4 +79,23 @@ impl Tray {
 
 // checks if there's a menu click waiting and returns the id string if so
 pub fn poll_menu_event() -> Option<String> {
-    MenuEvent::receiver().try_recv().ok().map
+    MenuEvent::receiver().try_recv().ok().map(|e| e.id.0.clone())
+}
+
+fn load_icon() -> tray_icon::Icon {
+    // try the dedicated 32px tray icon first, then fall back to the main png
+    for path in &["assets/icon_32.png", "assets/icon.png"] {
+        if let Ok(bytes) = std::fs::read(path) {
+            if let Ok(img) = image::load_from_memory(&bytes) {
+                let rgba = img.to_rgba8();
+                let (w, h) = rgba.dimensions();
+                if let Ok(icon) = tray_icon::Icon::from_rgba(rgba.into_raw(), w, h) {
+                    return icon;
+                }
+            }
+        }
+    }
+    // last resort: solid blue 32x32 square so we don't crash if assets are missing
+    let rgba: Vec<u8> = vec![0x4f_u8, 0x8e, 0xf7, 0xff].repeat(32 * 32);
+    tray_icon::Icon::from_rgba(rgba, 32, 32).expect("placeholder icon")
+}

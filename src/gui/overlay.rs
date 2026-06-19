@@ -586,4 +586,238 @@ impl Overlay {
                     store.lock().unwrap().history.iter().find(|e| &e.id == id).map(|e| e.data.clone())
                 });
 
-                if let Some(d
+                if let Some(data) = entry_data {
+                    // show buttons for each transform
+                    for t in Transform::all_simple() {
+                        if ui.button(t.label()).clicked() {
+                            match apply_transform(&data, &t) {
+                                Ok(result) => {
+                                    self.transform_menu.result = Some(Ok(result.clone()));
+                                    action = OverlayAction::PasteEntry(result);
+                                    self.transform_menu.open = false;
+                                }
+                                Err(e) => {
+                                    self.transform_menu.result = Some(Err(e.to_string()));
+                                }
+                            }
+                        }
+                    }
+
+                    ui.separator();
+                    ui.label(RichText::new("Regex Replace").color(palette.text));
+                    ui.horizontal(|ui| {
+                        ui.label("Pattern:");
+                        ui.text_edit_singleline(&mut self.transform_menu.regex_pattern);
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label("Replace:");
+                        ui.text_edit_singleline(&mut self.transform_menu.regex_replace);
+                    });
+                    if ui.button("Apply Regex").clicked() {
+                        let t = Transform::RegexReplace {
+                            pattern: self.transform_menu.regex_pattern.clone(),
+                            replacement: self.transform_menu.regex_replace.clone(),
+                        };
+                        match apply_transform(&data, &t) {
+                            Ok(result) => {
+                                action = OverlayAction::PasteEntry(result);
+                                self.transform_menu.open = false;
+                            }
+                            Err(e) => {
+                                self.transform_menu.result = Some(Err(e.to_string()));
+                            }
+                        }
+                    }
+                }
+
+                // show errors in red if a transform fails
+                if let Some(Err(ref err)) = self.transform_menu.result {
+                    ui.label(RichText::new(format!("Error: {err}")).color(palette.danger));
+                }
+
+                ui.separator();
+                if ui.button("Cancel").clicked() {
+                    self.transform_menu.open = false;
+                    self.transform_menu.result = None;
+                }
+            });
+
+        action
+    }
+
+    fn handle_keyboard(
+        &mut self,
+        ui: &mut Ui,
+        store: &Arc<Mutex<Store>>,
+        snippets: &Arc<Mutex<SnippetStore>>,
+    ) -> OverlayAction {
+        let ctx = ui.ctx();
+
+        // escape closes the overlay
+        if ctx.input(|i| i.key_pressed(Key::Escape)) {
+            return OverlayAction::Close;
+        }
+
+        // tab cycles between history/pinned/snippets tabs
+        if ctx.input(|i| i.key_pressed(Key::Tab) && i.modifiers == Modifiers::NONE) {
+            self.tab = self.tab.next();
+            self.selected_idx = 0;
+        }
+
+        // arrow keys move the selection up and down
+        let total = self.current_count(store, snippets);
+        if ctx.input(|i| i.key_pressed(Key::ArrowDown)) {
+            if self.selected_idx + 1 < total {
+                self.selected_idx += 1;
+            }
+        }
+        if ctx.input(|i| i.key_pressed(Key::ArrowUp)) {
+            self.selected_idx = self.selected_idx.saturating_sub(1);
+        }
+
+        // enter pastes the selected item
+        if ctx.input(|i| i.key_pressed(Key::Enter)) {
+            if let Some(data) = self.selected_data(store, snippets) {
+                return OverlayAction::PasteEntry(data);
+            }
+        }
+
+        // delete removes the selected item
+        if ctx.input(|i| i.key_pressed(Key::Delete)) {
+            if let Some(id) = self.selected_id(store) {
+                return OverlayAction::DeleteEntry(id);
+            }
+        }
+
+        // / jumps focus to the search box
+        if ctx.input(|i| i.key_pressed(Key::Slash)) {
+            self.focus_search = true;
+        }
+
+        // p pins or unpins the selected item
+        if ctx.input(|i| i.key_pressed(Key::P) && i.modifiers == Modifiers::NONE) {
+            if let Some(id) = self.selected_id(store) {
+                store.lock().unwrap().toggle_pin(&id);
+            }
+        }
+
+        // e opens the transforms menu for the selected item
+        if ctx.input(|i| i.key_pressed(Key::E) && i.modifiers == Modifiers::NONE) {
+            if let Some(id) = self.selected_id(store) {
+                self.transform_menu.open = true;
+                self.transform_menu.entry_id = Some(id);
+            }
+        }
+
+        // 1-9 instant-paste by position
+        for (key, idx) in [
+            (Key::Num1, 0),
+            (Key::Num2, 1),
+            (Key::Num3, 2),
+            (Key::Num4, 3),
+            (Key::Num5, 4),
+            (Key::Num6, 5),
+            (Key::Num7, 6),
+            (Key::Num8, 7),
+            (Key::Num9, 8),
+        ] {
+            if ctx.input(|i| i.key_pressed(key) && i.modifiers == Modifiers::NONE) {
+                let entries = self.all_current_entries(store, snippets);
+                if let Some(data) = entries.get(idx) {
+                    return OverlayAction::PasteEntry(data.clone());
+                }
+            }
+        }
+
+        OverlayAction::None
+    }
+
+    // returns entries matching the current search query, sorted by fuzzy score
+    fn filtered_entries<'a>(&self, entries: &'a [ClipEntry]) -> Vec<&'a ClipEntry> {
+        let q = self.search_query.trim();
+        if q.is_empty() {
+            return entries.iter().collect();
+        }
+        let mut scored: Vec<(i64, &ClipEntry)> = entries
+            .iter()
+            .filter_map(|e| self.matcher.fuzzy_match(&e.data, q).map(|score| (score, e)))
+            .collect();
+        scored.sort_by(|a, b| b.0.cmp(&a.0));
+        scored.into_iter().map(|(_, e)| e).collect()
+    }
+
+    fn current_count(&self, store: &Arc<Mutex<Store>>, snippets: &Arc<Mutex<SnippetStore>>) -> usize {
+        match self.tab {
+            Tab::History => store.lock().unwrap().history.iter().filter(|e| !e.is_pinned).count(),
+            Tab::Pinned => store.lock().unwrap().history.iter().filter(|e| e.is_pinned).count(),
+            Tab::Snippets => snippets.lock().unwrap().snippets.len(),
+            Tab::Settings => 0,
+        }
+    }
+
+    fn selected_id(&self, store: &Arc<Mutex<Store>>) -> Option<String> {
+        let s = store.lock().unwrap();
+        let entries: Vec<&ClipEntry> = match self.tab {
+            Tab::History => s.history.iter().filter(|e| !e.is_pinned).collect(),
+            Tab::Pinned => s.history.iter().filter(|e| e.is_pinned).collect(),
+            Tab::Snippets | Tab::Settings => return None,
+        };
+        entries.get(self.selected_idx).map(|e| e.id.clone())
+    }
+
+    fn selected_data(
+        &self,
+        store: &Arc<Mutex<Store>>,
+        snippets: &Arc<Mutex<SnippetStore>>,
+    ) -> Option<String> {
+        match self.tab {
+            Tab::Snippets => snippets
+                .lock()
+                .unwrap()
+                .snippets
+                .get(self.selected_idx)
+                .map(|s| s.expanded_content()),
+            Tab::Settings => None,
+            _ => {
+                let s = store.lock().unwrap();
+                let entries: Vec<&ClipEntry> = match self.tab {
+                    Tab::History => s.history.iter().filter(|e| !e.is_pinned).collect(),
+                    Tab::Pinned => s.history.iter().filter(|e| e.is_pinned).collect(),
+                    _ => unreachable!(),
+                };
+                entries.get(self.selected_idx).map(|e| e.data.clone())
+            }
+        }
+    }
+
+    fn all_current_entries(
+        &self,
+        store: &Arc<Mutex<Store>>,
+        snippets: &Arc<Mutex<SnippetStore>>,
+    ) -> Vec<String> {
+        match self.tab {
+            Tab::Snippets => snippets
+                .lock()
+                .unwrap()
+                .snippets
+                .iter()
+                .map(|s| s.expanded_content())
+                .collect(),
+            Tab::Settings => Vec::new(),
+            _ => {
+                let s = store.lock().unwrap();
+                s.history
+                    .iter()
+                    .filter(|e| {
+                        if self.tab == Tab::History {
+                            !e.is_pinned
+                        } else {
+                            e.is_pinned
+                        }
+                    })
+                    .map(|e| e.data.clone())
+                    .collect()
+            }
+        }
+    }
+}

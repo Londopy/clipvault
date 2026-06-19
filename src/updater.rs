@@ -81,4 +81,11 @@ fn install_update() -> Result<()> {
         self_update::Status::Updated(v) => {
             info!("Updated to {v}. Restarting…");
             let exe = std::env::current_exe()?;
-            let args: Vec<String> = std::env::args
+            let args: Vec<String> = std::env::args().skip(1).collect();
+            std::process::Command::new(exe).args(&args).spawn()?;
+            std::process::exit(0);
+        }
+    }
+
+    Ok(())
+}

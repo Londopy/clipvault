@@ -111,3 +111,5 @@ fn xdg_autostart_path() -> PathBuf {
     dirs::config_dir()
         .unwrap_or_else(|| PathBuf::from(".config"))
         .join("autostart")
+        .join("clipvault.desktop")
+}

@@ -313,4 +313,56 @@ pub fn run(
             .with_inner_size([viewport_w, viewport_h])
             .with_min_inner_size([360.0, 400.0])
             .with_decorations(false)
-            .with
+            .with_always_on_top()
+            .with_icon(window_icon)
+            .with_visible(false), // hidden by default, shows up when you hit the hotkey
+        ..Default::default()
+    };
+
+    eframe::run_native(
+        "ClipVault",
+        native_options,
+        Box::new(|cc| {
+            Box::new(ClipVaultApp::new(cc, store, config, snippets, event_tx, event_rx))
+        }),
+    )
+    .map_err(|e| anyhow::anyhow!("eframe error: {e}"))?;
+
+    Ok(())
+}
+
+// loads the best available icon from assets/ for the window titlebar/taskbar
+// tries 64px first (looks nicest), then 32px, then the big one
+fn load_window_icon() -> egui::IconData {
+    for path in &["assets/icon_64.png", "assets/icon_32.png", "assets/icon.png"] {
+        if let Ok(bytes) = std::fs::read(path) {
+            if let Ok(img) = image::load_from_memory(&bytes) {
+                let rgba = img.to_rgba8();
+                let (w, h) = rgba.dimensions();
+                return egui::IconData {
+                    rgba: rgba.into_raw(),
+                    width: w,
+                    height: h,
+                };
+            }
+        }
+    }
+    // fallback solid blue square if assets folder is missing
+    let rgba: Vec<u8> = vec![0x4f, 0x8e, 0xf7, 0xff].repeat(32 * 32);
+    egui::IconData { rgba, width: 32, height: 32 }
+}
+
+// builds the color palette based on the user's theme setting
+fn build_palette(cfg: &Config) -> Palette {
+    let accent = parse_hex_color(&cfg.gui.accent_color);
+    let is_dark = match cfg.gui.theme.as_str() {
+        "light" => false,
+        "system" => theme::system_is_dark(),
+        _ => true, // "dark" or "custom", default to dark
+    };
+    if is_dark {
+        Palette::dark(accent)
+    } else {
+        Palette::light(accent)
+    }
+}
