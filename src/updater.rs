@@ -21,7 +21,11 @@ pub async fn check_and_notify(
 ) -> Result<()> {
     let (enabled, check_on_startup, auto_install) = {
         let cfg = config.lock().unwrap();
-        (cfg.updater.enabled, cfg.updater.check_on_startup, cfg.updater.auto_install)
+        (
+            cfg.updater.enabled,
+            cfg.updater.check_on_startup,
+            cfg.updater.auto_install,
+        )
     };
 
     if !enabled || !check_on_startup {
@@ -33,8 +37,8 @@ pub async fn check_and_notify(
     // spawn_blocking because the http call would block the async runtime
     let latest = tokio::task::spawn_blocking(|| fetch_latest_version()).await??;
 
-    let current = Version::parse(env!("CLIPVAULT_VERSION"))
-        .unwrap_or_else(|_| Version::new(0, 0, 0));
+    let current =
+        Version::parse(env!("CLIPVAULT_VERSION")).unwrap_or_else(|_| Version::new(0, 0, 0));
 
     if latest > current {
         info!("Update available: {current} → {latest}");
@@ -57,7 +61,8 @@ fn fetch_latest_version() -> Result<Version> {
         .build()?
         .fetch()?;
 
-    let latest = releases.first()
+    let latest = releases
+        .first()
         .ok_or_else(|| anyhow::anyhow!("no releases found"))?;
 
     let tag = latest.version.trim_start_matches('v');

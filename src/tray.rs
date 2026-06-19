@@ -20,7 +20,7 @@ pub const ID_QUIT: &str = "quit";
 
 pub struct Tray {
     _icon: TrayIcon,
-    item_pause: MenuItem, // need to hold onto this so we can change its label
+    item_pause: MenuItem,   // need to hold onto this so we can change its label
     item_startup: MenuItem, // same for the launch at login toggle
 }
 
@@ -34,7 +34,11 @@ impl Tray {
         let item_clear = MenuItem::with_id(ID_CLEAR, "Clear History", true, None);
         let item_open_config = MenuItem::with_id(ID_OPEN_CONFIG, "Open Config Folder", true, None);
         // shows a checkmark when startup is enabled
-        let startup_label = if auto_start { "✓ Launch at Login" } else { "Launch at Login" };
+        let startup_label = if auto_start {
+            "✓ Launch at Login"
+        } else {
+            "Launch at Login"
+        };
         let item_startup = MenuItem::with_id(ID_TOGGLE_START, startup_label, true, None);
         let item_quit = MenuItem::with_id(ID_QUIT, "Quit", true, None);
 
@@ -57,29 +61,46 @@ impl Tray {
             .with_icon(icon)
             .build()?;
 
-        Ok(Self { _icon: tray_icon, item_pause, item_startup })
+        Ok(Self {
+            _icon: tray_icon,
+            item_pause,
+            item_startup,
+        })
     }
 
     // shows how many items are in history in the tooltip
     pub fn set_count(&mut self, count: usize) {
         debug!("Tray count: {count}");
-        let _ = self._icon.set_tooltip(Some(format!("ClipVault — {count} items")));
+        let _ = self
+            ._icon
+            .set_tooltip(Some(format!("ClipVault — {count} items")));
     }
 
     // toggles the pause button text so the user knows what state its in
     pub fn set_paused(&mut self, paused: bool) {
-        self.item_pause.set_text(if paused { "Resume Recording" } else { "Pause Recording" });
+        self.item_pause.set_text(if paused {
+            "Resume Recording"
+        } else {
+            "Pause Recording"
+        });
     }
 
     // updates the launch at login label to show current state
     pub fn set_auto_start(&mut self, enabled: bool) {
-        self.item_startup.set_text(if enabled { "✓ Launch at Login" } else { "Launch at Login" });
+        self.item_startup.set_text(if enabled {
+            "✓ Launch at Login"
+        } else {
+            "Launch at Login"
+        });
     }
 }
 
 // checks if there's a menu click waiting and returns the id string if so
 pub fn poll_menu_event() -> Option<String> {
-    MenuEvent::receiver().try_recv().ok().map(|e| e.id.0.clone())
+    MenuEvent::receiver()
+        .try_recv()
+        .ok()
+        .map(|e| e.id.0.clone())
 }
 
 fn load_icon() -> tray_icon::Icon {

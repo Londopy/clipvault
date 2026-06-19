@@ -182,11 +182,7 @@ impl Default for UpdaterConfig {
 impl Default for SecurityConfig {
     fn default() -> Self {
         Self {
-            excluded_apps: vec![
-                "1Password".into(),
-                "KeePassXC".into(),
-                "Bitwarden".into(),
-            ],
+            excluded_apps: vec!["1Password".into(), "KeePassXC".into(), "Bitwarden".into()],
             mask_passwords: true,
             encrypt_history: false,
             incognito_hotkey: "ctrl+shift+i".into(),
@@ -226,10 +222,10 @@ impl Config {
             cfg.save()?;
             return Ok(cfg);
         }
-        let raw = fs::read_to_string(&path)
-            .with_context(|| format!("reading {}", path.display()))?;
-        let cfg: Config = toml::from_str(&raw)
-            .with_context(|| format!("parsing {}", path.display()))?;
+        let raw =
+            fs::read_to_string(&path).with_context(|| format!("reading {}", path.display()))?;
+        let cfg: Config =
+            toml::from_str(&raw).with_context(|| format!("parsing {}", path.display()))?;
         cfg.validate()?;
         Ok(cfg)
     }
@@ -276,10 +272,16 @@ impl Config {
             .unwrap_or(&std::path::Path::new("."))
             .to_path_buf();
         #[cfg(target_os = "windows")]
-        { let _ = std::process::Command::new("explorer").arg(&dir).spawn(); }
+        {
+            let _ = std::process::Command::new("explorer").arg(&dir).spawn();
+        }
         #[cfg(target_os = "macos")]
-        { let _ = std::process::Command::new("open").arg(&dir).spawn(); }
+        {
+            let _ = std::process::Command::new("open").arg(&dir).spawn();
+        }
         #[cfg(target_os = "linux")]
-        { let _ = std::process::Command::new("xdg-open").arg(&dir).spawn(); }
+        {
+            let _ = std::process::Command::new("xdg-open").arg(&dir).spawn();
+        }
     }
 }

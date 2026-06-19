@@ -82,7 +82,10 @@ fn xdg_autostart() {
     let desktop_path = xdg_autostart_path();
     let exe = match std::env::current_exe() {
         Ok(p) => p,
-        Err(e) => { warn!("Could not find exe path: {e}"); return; }
+        Err(e) => {
+            warn!("Could not find exe path: {e}");
+            return;
+        }
     };
 
     let desktop = format!(

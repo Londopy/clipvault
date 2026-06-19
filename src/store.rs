@@ -7,9 +7,9 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
+use aes_gcm::aead::rand_core::RngCore;
 use aes_gcm::aead::{Aead, KeyInit, OsRng};
 use aes_gcm::{Aes256Gcm, Key, Nonce};
-use aes_gcm::aead::rand_core::RngCore;
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -58,7 +58,11 @@ impl ClipEntry {
         }
     }
 
-    pub fn new_image(thumbnail_b64: String, image_path: Option<PathBuf>, source_app: Option<String>) -> Self {
+    pub fn new_image(
+        thumbnail_b64: String,
+        image_path: Option<PathBuf>,
+        source_app: Option<String>,
+    ) -> Self {
         Self {
             id: Uuid::new_v4().to_string(),
             content_type: ContentType::Image,
@@ -149,8 +153,8 @@ impl Store {
         } else {
             raw
         };
-        let file: HistoryFile = serde_json::from_slice(&json_bytes)
-            .context("parsing history file")?;
+        let file: HistoryFile =
+            serde_json::from_slice(&json_bytes).context("parsing history file")?;
         store.history = file.entries.into_iter().collect();
         // trim down in case the history_limit changed since last run
         while store.history.len() > store.max_size {
@@ -257,7 +261,8 @@ impl Store {
         let key_path = Self::history_path().with_extension("key");
         let key: [u8; 32] = if key_path.exists() {
             let raw = fs::read(&key_path)?;
-            raw.try_into().map_err(|_| anyhow::anyhow!("invalid key length"))?
+            raw.try_into()
+                .map_err(|_| anyhow::anyhow!("invalid key length"))?
         } else {
             // generate a new random key and save it
             let mut k = [0u8; 32];
@@ -270,14 +275,17 @@ impl Store {
     }
 
     fn encrypt_bytes(&self, data: &[u8]) -> Result<Vec<u8>> {
-        let key_bytes = self.enc_key.ok_or_else(|| anyhow::anyhow!("no encryption key"))?;
+        let key_bytes = self
+            .enc_key
+            .ok_or_else(|| anyhow::anyhow!("no encryption key"))?;
         let key = Key::<Aes256Gcm>::from_slice(&key_bytes);
         let cipher = Aes256Gcm::new(key);
         // random nonce prepended to the ciphertext so we can decrypt later
         let mut nonce_bytes = [0u8; 12];
         OsRng.fill_bytes(&mut nonce_bytes);
         let nonce = Nonce::from_slice(&nonce_bytes);
-        let ciphertext = cipher.encrypt(nonce, data)
+        let ciphertext = cipher
+            .encrypt(nonce, data)
             .map_err(|e| anyhow::anyhow!("encrypt: {e}"))?;
         let mut out = nonce_bytes.to_vec();
         out.extend(ciphertext);
@@ -285,12 +293,15 @@ impl Store {
     }
 
     fn decrypt_bytes(&self, data: &[u8]) -> Result<Vec<u8>> {
-        let key_bytes = self.enc_key.ok_or_else(|| anyhow::anyhow!("no encryption key"))?;
+        let key_bytes = self
+            .enc_key
+            .ok_or_else(|| anyhow::anyhow!("no encryption key"))?;
         anyhow::ensure!(data.len() > 12, "ciphertext too short");
         let key = Key::<Aes256Gcm>::from_slice(&key_bytes);
         let cipher = Aes256Gcm::new(key);
         let nonce = Nonce::from_slice(&data[..12]);
-        let plain = cipher.decrypt(nonce, &data[12..])
+        let plain = cipher
+            .decrypt(nonce, &data[12..])
             .map_err(|e| anyhow::anyhow!("decrypt: {e}"))?;
         Ok(plain)
     }

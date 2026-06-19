@@ -7,12 +7,12 @@ use std::sync::{Arc, Mutex};
 use egui::{Context, Key, Modifiers, RichText, ScrollArea, Ui};
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 
+use super::preview::PreviewPane;
+use super::theme::Palette;
 use crate::config::Config;
 use crate::snippets::SnippetStore;
 use crate::store::{ClipEntry, Store};
 use crate::transforms::{apply as apply_transform, Transform};
-use super::theme::Palette;
-use super::preview::PreviewPane;
 
 // which tab is selected in the overlay
 #[derive(Debug, Clone, PartialEq)]
@@ -82,10 +82,10 @@ impl Default for Overlay {
 // what the overlay wants to do after this frame
 pub enum OverlayAction {
     None,
-    PasteEntry(String), // user picked something to paste
+    PasteEntry(String),  // user picked something to paste
     DeleteEntry(String), // user deleted an entry (by id)
-    Close, // user pressed escape or clicked away
-    SettingsChanged, // user toggled something in settings - parent should rebuild palette etc
+    Close,               // user pressed escape or clicked away
+    SettingsChanged,     // user toggled something in settings - parent should rebuild palette etc
 }
 
 impl Overlay {
@@ -137,7 +137,11 @@ impl Overlay {
                 (Tab::Snippets, "Snippets"),
             ] {
                 let selected = self.tab == tab;
-                let text = RichText::new(label).color(if selected { palette.accent } else { palette.text_dim });
+                let text = RichText::new(label).color(if selected {
+                    palette.accent
+                } else {
+                    palette.text_dim
+                });
                 if ui.selectable_label(selected, text).clicked() {
                     self.tab = tab;
                     self.selected_idx = 0;
@@ -146,9 +150,21 @@ impl Overlay {
             // settings gear sits on the far right
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 let selected = self.tab == Tab::Settings;
-                let text = RichText::new("⚙").color(if selected { palette.accent } else { palette.text_dim });
-                if ui.selectable_label(selected, text).on_hover_text("Settings").clicked() {
-                    self.tab = if selected { Tab::History } else { Tab::Settings };
+                let text = RichText::new("⚙").color(if selected {
+                    palette.accent
+                } else {
+                    palette.text_dim
+                });
+                if ui
+                    .selectable_label(selected, text)
+                    .on_hover_text("Settings")
+                    .clicked()
+                {
+                    self.tab = if selected {
+                        Tab::History
+                    } else {
+                        Tab::Settings
+                    };
                 }
             });
         });
@@ -172,7 +188,11 @@ impl Overlay {
         // ── Item list ─────────────────────────────────────────────────────────
         let (max_items, show_ts, show_app) = {
             let cfg = config.lock().unwrap();
-            (cfg.gui.max_visible_items, cfg.gui.show_timestamps, cfg.gui.show_source_app)
+            (
+                cfg.gui.max_visible_items,
+                cfg.gui.show_timestamps,
+                cfg.gui.show_source_app,
+            )
         };
 
         // render whichever tab is active
@@ -180,29 +200,19 @@ impl Overlay {
             Tab::History => {
                 let entries: Vec<ClipEntry> = {
                     let s = store.lock().unwrap();
-                    s.history.iter()
-                        .filter(|e| !e.is_pinned)
-                        .cloned()
-                        .collect()
+                    s.history.iter().filter(|e| !e.is_pinned).cloned().collect()
                 };
                 self.draw_entry_list(ui, &entries, palette, max_items, show_ts, show_app, false)
             }
             Tab::Pinned => {
                 let entries: Vec<ClipEntry> = {
                     let s = store.lock().unwrap();
-                    s.history.iter()
-                        .filter(|e| e.is_pinned)
-                        .cloned()
-                        .collect()
+                    s.history.iter().filter(|e| e.is_pinned).cloned().collect()
                 };
                 self.draw_entry_list(ui, &entries, palette, max_items, show_ts, show_app, false)
             }
-            Tab::Snippets => {
-                self.draw_snippets_list(ui, snippets, palette, max_items)
-            }
-            Tab::Settings => {
-                self.draw_settings(ui, config, store, palette)
-            }
+            Tab::Snippets => self.draw_snippets_list(ui, snippets, palette, max_items),
+            Tab::Settings => self.draw_settings(ui, config, store, palette),
         };
 
         if !matches!(list_action, OverlayAction::None) {
@@ -213,8 +223,15 @@ impl Overlay {
         if self.tab != Tab::Snippets && self.tab != Tab::Settings {
             let entries: Vec<ClipEntry> = {
                 let s = store.lock().unwrap();
-                s.history.iter()
-                    .filter(|e| if self.tab == Tab::History { !e.is_pinned } else { e.is_pinned })
+                s.history
+                    .iter()
+                    .filter(|e| {
+                        if self.tab == Tab::History {
+                            !e.is_pinned
+                        } else {
+                            e.is_pinned
+                        }
+                    })
                     .cloned()
                     .collect()
             };
@@ -259,7 +276,11 @@ impl Overlay {
             .show(ui, |ui| {
                 for (idx, entry) in filtered.iter().enumerate().take(max_items) {
                     let selected = idx == self.selected_idx;
-                    let bg_color = if selected { palette.bg_highlight } else { palette.bg_secondary };
+                    let bg_color = if selected {
+                        palette.bg_highlight
+                    } else {
+                        palette.bg_secondary
+                    };
 
                     let item_resp = egui::Frame::none()
                         .fill(bg_color)
@@ -270,29 +291,42 @@ impl Overlay {
                             ui.horizontal(|ui| {
                                 // show a number for the first 9 so you know what ctrl+alt+n does
                                 if idx < 9 {
-                                    ui.label(RichText::new(format!("{}.", idx + 1))
-                                        .color(palette.text_dim).small());
+                                    ui.label(
+                                        RichText::new(format!("{}.", idx + 1))
+                                            .color(palette.text_dim)
+                                            .small(),
+                                    );
                                 }
                                 // Pin indicator
                                 if entry.is_pinned {
                                     ui.label(RichText::new("📌").small());
                                 }
                                 // Preview text
-                                ui.label(
-                                    RichText::new(entry.preview(80))
-                                        .color(if selected { palette.text } else { palette.text_dim })
-                                );
-                                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                    if show_ts {
-                                        let ts = entry.timestamp.format("%H:%M").to_string();
-                                        ui.label(RichText::new(ts).color(palette.text_dim).small());
-                                    }
-                                    if show_app {
-                                        if let Some(ref app) = entry.source_app {
-                                            ui.label(RichText::new(app.as_str()).color(palette.text_dim).small());
+                                ui.label(RichText::new(entry.preview(80)).color(if selected {
+                                    palette.text
+                                } else {
+                                    palette.text_dim
+                                }));
+                                ui.with_layout(
+                                    egui::Layout::right_to_left(egui::Align::Center),
+                                    |ui| {
+                                        if show_ts {
+                                            let ts = entry.timestamp.format("%H:%M").to_string();
+                                            ui.label(
+                                                RichText::new(ts).color(palette.text_dim).small(),
+                                            );
                                         }
-                                    }
-                                });
+                                        if show_app {
+                                            if let Some(ref app) = entry.source_app {
+                                                ui.label(
+                                                    RichText::new(app.as_str())
+                                                        .color(palette.text_dim)
+                                                        .small(),
+                                                );
+                                            }
+                                        }
+                                    },
+                                );
                             });
                         });
 
@@ -340,7 +374,9 @@ impl Overlay {
         let sn = snippets.lock().unwrap();
         let query = self.search_query.to_lowercase();
 
-        let filtered: Vec<_> = sn.snippets.iter()
+        let filtered: Vec<_> = sn
+            .snippets
+            .iter()
             .filter(|s| {
                 query.is_empty()
                     || s.name.to_lowercase().contains(&query)
@@ -354,7 +390,11 @@ impl Overlay {
             .show(ui, |ui| {
                 for (idx, sn) in filtered.iter().enumerate().take(max_items) {
                     let selected = idx == self.selected_idx;
-                    let bg_color = if selected { palette.bg_highlight } else { palette.bg_secondary };
+                    let bg_color = if selected {
+                        palette.bg_highlight
+                    } else {
+                        palette.bg_secondary
+                    };
 
                     let item_resp = egui::Frame::none()
                         .fill(bg_color)
@@ -365,12 +405,23 @@ impl Overlay {
                             ui.horizontal(|ui| {
                                 ui.label(RichText::new(&sn.name).color(palette.text));
                                 if let Some(ref sc) = sn.shortcode {
-                                    ui.label(RichText::new(format!(";;{sc}")).color(palette.accent).small());
+                                    ui.label(
+                                        RichText::new(format!(";;{sc}"))
+                                            .color(palette.accent)
+                                            .small(),
+                                    );
                                 }
                                 if let Some(ref cat) = sn.category {
-                                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                        ui.label(RichText::new(cat.as_str()).color(palette.text_dim).small());
-                                    });
+                                    ui.with_layout(
+                                        egui::Layout::right_to_left(egui::Align::Center),
+                                        |ui| {
+                                            ui.label(
+                                                RichText::new(cat.as_str())
+                                                    .color(palette.text_dim)
+                                                    .small(),
+                                            );
+                                        },
+                                    );
                                 }
                             });
                         });
@@ -414,8 +465,11 @@ impl Overlay {
                     ui.checkbox(&mut cfg.general.auto_start, "");
                     ui.label(RichText::new("Start with system").color(palette.text));
                 });
-                ui.label(RichText::new("Launch ClipVault automatically when you log in.")
-                    .color(palette.text_dim).small());
+                ui.label(
+                    RichText::new("Launch ClipVault automatically when you log in.")
+                        .color(palette.text_dim)
+                        .small(),
+                );
                 if cfg.general.auto_start != prev_auto_start {
                     // actually register/unregister with the OS right now
                     if cfg.general.auto_start {
@@ -433,7 +487,9 @@ impl Overlay {
                     ui.checkbox(&mut cfg.general.persist_history, "");
                     ui.label(RichText::new("Save history between sessions").color(palette.text));
                 });
-                if cfg.general.persist_history != prev { changed = true; }
+                if cfg.general.persist_history != prev {
+                    changed = true;
+                }
 
                 ui.add_space(4.0);
 
@@ -442,18 +498,25 @@ impl Overlay {
                     ui.checkbox(&mut cfg.general.deduplicate, "");
                     ui.label(RichText::new("Skip duplicate entries").color(palette.text));
                 });
-                if cfg.general.deduplicate != prev { changed = true; }
+                if cfg.general.deduplicate != prev {
+                    changed = true;
+                }
 
                 ui.add_space(4.0);
 
                 ui.horizontal(|ui| {
                     ui.label(RichText::new("History limit:").color(palette.text));
-                    ui.add(egui::DragValue::new(&mut cfg.general.history_limit)
-                        .clamp_range(10..=10_000usize)
-                        .speed(1.0));
+                    ui.add(
+                        egui::DragValue::new(&mut cfg.general.history_limit)
+                            .clamp_range(10..=10_000usize)
+                            .speed(1.0),
+                    );
                 });
-                ui.label(RichText::new("Max number of items to keep.")
-                    .color(palette.text_dim).small());
+                ui.label(
+                    RichText::new("Max number of items to keep.")
+                        .color(palette.text_dim)
+                        .small(),
+                );
             }
 
             ui.add_space(12.0);
@@ -471,7 +534,9 @@ impl Overlay {
                     ui.checkbox(&mut cfg.gui.show_timestamps, "");
                     ui.label(RichText::new("Show timestamps").color(palette.text));
                 });
-                if cfg.gui.show_timestamps != prev { changed = true; }
+                if cfg.gui.show_timestamps != prev {
+                    changed = true;
+                }
 
                 ui.add_space(4.0);
 
@@ -480,7 +545,9 @@ impl Overlay {
                     ui.checkbox(&mut cfg.gui.show_source_app, "");
                     ui.label(RichText::new("Show source app").color(palette.text));
                 });
-                if cfg.gui.show_source_app != prev { changed = true; }
+                if cfg.gui.show_source_app != prev {
+                    changed = true;
+                }
 
                 ui.add_space(4.0);
 
@@ -530,9 +597,14 @@ impl Overlay {
                     ui.checkbox(&mut cfg.security.mask_passwords, "");
                     ui.label(RichText::new("Mask passwords").color(palette.text));
                 });
-                ui.label(RichText::new("Hides entries that look like passwords.")
-                    .color(palette.text_dim).small());
-                if cfg.security.mask_passwords != prev { changed = true; }
+                ui.label(
+                    RichText::new("Hides entries that look like passwords.")
+                        .color(palette.text_dim)
+                        .small(),
+                );
+                if cfg.security.mask_passwords != prev {
+                    changed = true;
+                }
 
                 ui.add_space(4.0);
 
@@ -541,22 +613,30 @@ impl Overlay {
                     ui.checkbox(&mut cfg.security.encrypt_history, "");
                     ui.label(RichText::new("Encrypt history file").color(palette.text));
                 });
-                ui.label(RichText::new("AES-256-GCM. Takes effect on next save.")
-                    .color(palette.text_dim).small());
-                if cfg.security.encrypt_history != prev { changed = true; }
+                ui.label(
+                    RichText::new("AES-256-GCM. Takes effect on next save.")
+                        .color(palette.text_dim)
+                        .small(),
+                );
+                if cfg.security.encrypt_history != prev {
+                    changed = true;
+                }
             }
 
             ui.add_space(8.0);
 
             // danger zone: clear history button
-            let btn = egui::Button::new(
-                RichText::new("Clear All History").color(egui::Color32::WHITE)
-            ).fill(palette.danger);
+            let btn =
+                egui::Button::new(RichText::new("Clear All History").color(egui::Color32::WHITE))
+                    .fill(palette.danger);
             if ui.add(btn).clicked() {
                 store.lock().unwrap().clear(false);
             }
-            ui.label(RichText::new("Removes everything including pinned items.")
-                .color(palette.text_dim).small());
+            ui.label(
+                RichText::new("Removes everything including pinned items.")
+                    .color(palette.text_dim)
+                    .small(),
+            );
 
             ui.add_space(8.0);
 
@@ -566,7 +646,11 @@ impl Overlay {
             }
         });
 
-        if changed { OverlayAction::SettingsChanged } else { OverlayAction::None }
+        if changed {
+            OverlayAction::SettingsChanged
+        } else {
+            OverlayAction::None
+        }
     }
 
     fn draw_transform_menu(
@@ -582,9 +666,16 @@ impl Overlay {
             .resizable(false)
             .show(ui.ctx(), |ui| {
                 // look up the entry we're transforming
-                let entry_data: Option<String> = self.transform_menu.entry_id.as_ref().and_then(|id| {
-                    store.lock().unwrap().history.iter().find(|e| &e.id == id).map(|e| e.data.clone())
-                });
+                let entry_data: Option<String> =
+                    self.transform_menu.entry_id.as_ref().and_then(|id| {
+                        store
+                            .lock()
+                            .unwrap()
+                            .history
+                            .iter()
+                            .find(|e| &e.id == id)
+                            .map(|e| e.data.clone())
+                    });
 
                 if let Some(data) = entry_data {
                     // show buttons for each transform
@@ -746,10 +837,26 @@ impl Overlay {
         scored.into_iter().map(|(_, e)| e).collect()
     }
 
-    fn current_count(&self, store: &Arc<Mutex<Store>>, snippets: &Arc<Mutex<SnippetStore>>) -> usize {
+    fn current_count(
+        &self,
+        store: &Arc<Mutex<Store>>,
+        snippets: &Arc<Mutex<SnippetStore>>,
+    ) -> usize {
         match self.tab {
-            Tab::History => store.lock().unwrap().history.iter().filter(|e| !e.is_pinned).count(),
-            Tab::Pinned => store.lock().unwrap().history.iter().filter(|e| e.is_pinned).count(),
+            Tab::History => store
+                .lock()
+                .unwrap()
+                .history
+                .iter()
+                .filter(|e| !e.is_pinned)
+                .count(),
+            Tab::Pinned => store
+                .lock()
+                .unwrap()
+                .history
+                .iter()
+                .filter(|e| e.is_pinned)
+                .count(),
             Tab::Snippets => snippets.lock().unwrap().snippets.len(),
             Tab::Settings => 0,
         }

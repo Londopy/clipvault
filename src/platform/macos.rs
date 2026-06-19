@@ -30,10 +30,14 @@ pub fn register_startup() {
     let plist_path = launch_agent_path();
     let exe = match std::env::current_exe() {
         Ok(p) => p,
-        Err(e) => { warn!("Could not find exe path: {e}"); return; }
+        Err(e) => {
+            warn!("Could not find exe path: {e}");
+            return;
+        }
     };
 
-    let plist = format!(r#"<?xml version="1.0" encoding="UTF-8"?>
+    let plist = format!(
+        r#"<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
   "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -49,7 +53,9 @@ pub fn register_startup() {
   <key>KeepAlive</key>
   <false/>
 </dict>
-</plist>"#, exe.display());
+</plist>"#,
+        exe.display()
+    );
 
     if let Some(parent) = plist_path.parent() {
         let _ = std::fs::create_dir_all(parent);

@@ -20,7 +20,9 @@ pub fn get_foreground_app() -> Option<String> {
         if len == 0 {
             return None;
         }
-        let title = OsString::from_wide(&buf[..len as usize]).to_string_lossy().into_owned();
+        let title = OsString::from_wide(&buf[..len as usize])
+            .to_string_lossy()
+            .into_owned();
         Some(title)
     }
 }

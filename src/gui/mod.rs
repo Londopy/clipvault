@@ -6,7 +6,10 @@ pub mod overlay;
 pub mod preview;
 pub mod theme;
 
-use std::sync::{mpsc::{Receiver, Sender}, Arc, Mutex};
+use std::sync::{
+    mpsc::{Receiver, Sender},
+    Arc, Mutex,
+};
 use std::time::Instant;
 
 use anyhow::Result;
@@ -19,7 +22,10 @@ use crate::notify;
 use crate::paste;
 use crate::snippets::SnippetStore;
 use crate::store::Store;
-use crate::tray::{self, Tray, ID_CLEAR, ID_OPEN, ID_OPEN_CONFIG, ID_PASTE_LAST, ID_PAUSE, ID_QUIT, ID_TOGGLE_START};
+use crate::tray::{
+    self, Tray, ID_CLEAR, ID_OPEN, ID_OPEN_CONFIG, ID_PASTE_LAST, ID_PAUSE, ID_QUIT,
+    ID_TOGGLE_START,
+};
 
 use self::overlay::{Overlay, OverlayAction, Tab};
 use self::theme::{build_visuals, parse_hex_color, Palette};
@@ -113,8 +119,12 @@ impl ClipVaultApp {
                 }
                 AppEvent::PasteLast => {
                     debug!("Event: PasteLast");
-                    let data = self.store.lock().unwrap()
-                        .history.front()
+                    let data = self
+                        .store
+                        .lock()
+                        .unwrap()
+                        .history
+                        .front()
                         .map(|e| e.data.clone());
                     if let Some(text) = data {
                         let _ = paste::paste_text(&text);
@@ -128,7 +138,11 @@ impl ClipVaultApp {
                     drop(s);
                     let cfg = self.config.lock().unwrap();
                     if cfg.notifications.enabled {
-                        let msg = if on { "Incognito mode ON" } else { "Incognito mode OFF" };
+                        let msg = if on {
+                            "Incognito mode ON"
+                        } else {
+                            "Incognito mode OFF"
+                        };
                         let _ = notify::send_notification("ClipVault", msg, &cfg);
                     }
                 }
@@ -136,7 +150,8 @@ impl ClipVaultApp {
                     debug!("Event: InstantPaste({n})");
                     let data = {
                         let s = self.store.lock().unwrap();
-                        s.history.iter()
+                        s.history
+                            .iter()
                             .filter(|e| !e.is_pinned)
                             .nth(n.saturating_sub(1))
                             .map(|e| e.data.clone())
@@ -168,7 +183,9 @@ impl ClipVaultApp {
         if let Some(id) = tray::poll_menu_event() {
             match id.as_str() {
                 ID_OPEN => self.open_overlay(Tab::History),
-                ID_PASTE_LAST => { let _ = self.event_tx.send(AppEvent::PasteLast); }
+                ID_PASTE_LAST => {
+                    let _ = self.event_tx.send(AppEvent::PasteLast);
+                }
                 ID_PAUSE => {
                     let mut s = self.store.lock().unwrap();
                     s.paused = !s.paused;
@@ -178,7 +195,9 @@ impl ClipVaultApp {
                         tray.set_paused(paused);
                     }
                 }
-                ID_CLEAR => { self.store.lock().unwrap().clear(true); }
+                ID_CLEAR => {
+                    self.store.lock().unwrap().clear(true);
+                }
                 ID_TOGGLE_START => {
                     // flip the auto_start setting, save it, and update the platform startup entry
                     let new_val = {
@@ -196,8 +215,12 @@ impl ClipVaultApp {
                         tray.set_auto_start(new_val);
                     }
                 }
-                ID_OPEN_CONFIG => { Config::open_config_dir(); }
-                ID_QUIT => { ctx.send_viewport_cmd(egui::ViewportCommand::Close); }
+                ID_OPEN_CONFIG => {
+                    Config::open_config_dir();
+                }
+                ID_QUIT => {
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                }
                 _ => {}
             }
         }
@@ -242,7 +265,9 @@ impl eframe::App for ClipVaultApp {
 
         if self.show_overlay {
             let snippets = Arc::clone(&self.snippets);
-            let action = self.overlay.show(ctx, &self.store, &snippets, &self.config, &self.palette);
+            let action =
+                self.overlay
+                    .show(ctx, &self.store, &snippets, &self.config, &self.palette);
 
             match action {
                 OverlayAction::None => {}
@@ -323,7 +348,9 @@ pub fn run(
         "ClipVault",
         native_options,
         Box::new(|cc| {
-            Box::new(ClipVaultApp::new(cc, store, config, snippets, event_tx, event_rx))
+            Box::new(ClipVaultApp::new(
+                cc, store, config, snippets, event_tx, event_rx,
+            ))
         }),
     )
     .map_err(|e| anyhow::anyhow!("eframe error: {e}"))?;
@@ -334,7 +361,11 @@ pub fn run(
 // loads the best available icon from assets/ for the window titlebar/taskbar
 // tries 64px first (looks nicest), then 32px, then the big one
 fn load_window_icon() -> egui::IconData {
-    for path in &["assets/icon_64.png", "assets/icon_32.png", "assets/icon.png"] {
+    for path in &[
+        "assets/icon_64.png",
+        "assets/icon_32.png",
+        "assets/icon.png",
+    ] {
         if let Ok(bytes) = std::fs::read(path) {
             if let Ok(img) = image::load_from_memory(&bytes) {
                 let rgba = img.to_rgba8();
@@ -349,7 +380,11 @@ fn load_window_icon() -> egui::IconData {
     }
     // fallback solid blue square if assets folder is missing
     let rgba: Vec<u8> = vec![0x4f, 0x8e, 0xf7, 0xff].repeat(32 * 32);
-    egui::IconData { rgba, width: 32, height: 32 }
+    egui::IconData {
+        rgba,
+        width: 32,
+        height: 32,
+    }
 }
 
 // builds the color palette based on the user's theme setting

@@ -82,7 +82,7 @@ pub fn parse_hex_color(s: &str) -> Color32 {
             return Color32::from_rgb(r, g, b);
         }
     }
-    Color32::from_rgb(0x4f, 0x8e, 0xf7)  // fall back to the default blue if parsing fails
+    Color32::from_rgb(0x4f, 0x8e, 0xf7) // fall back to the default blue if parsing fails
 }
 
 // checks if the os is in dark mode - for now we just always say yes

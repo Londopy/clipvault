@@ -25,26 +25,32 @@ pub fn paste_text(text: &str) -> Result<()> {
 
 // fires ctrl+v (or cmd+v on mac)
 pub fn simulate_paste() -> Result<()> {
-    let mut enigo = Enigo::new(&Settings::default())
-        .map_err(|e| anyhow::anyhow!("enigo init: {e:?}"))?;
+    let mut enigo =
+        Enigo::new(&Settings::default()).map_err(|e| anyhow::anyhow!("enigo init: {e:?}"))?;
 
     #[cfg(target_os = "macos")]
     {
-        enigo.key(Key::Meta, Direction::Press)
+        enigo
+            .key(Key::Meta, Direction::Press)
             .map_err(|e| anyhow::anyhow!("key press: {e:?}"))?;
-        enigo.key(Key::Unicode('v'), Direction::Click)
+        enigo
+            .key(Key::Unicode('v'), Direction::Click)
             .map_err(|e| anyhow::anyhow!("key click: {e:?}"))?;
-        enigo.key(Key::Meta, Direction::Release)
+        enigo
+            .key(Key::Meta, Direction::Release)
             .map_err(|e| anyhow::anyhow!("key release: {e:?}"))?;
     }
 
     #[cfg(not(target_os = "macos"))]
     {
-        enigo.key(Key::Control, Direction::Press)
+        enigo
+            .key(Key::Control, Direction::Press)
             .map_err(|e| anyhow::anyhow!("key press: {e:?}"))?;
-        enigo.key(Key::Unicode('v'), Direction::Click)
+        enigo
+            .key(Key::Unicode('v'), Direction::Click)
             .map_err(|e| anyhow::anyhow!("key click: {e:?}"))?;
-        enigo.key(Key::Control, Direction::Release)
+        enigo
+            .key(Key::Control, Direction::Release)
             .map_err(|e| anyhow::anyhow!("key release: {e:?}"))?;
     }
 

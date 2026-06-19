@@ -4,7 +4,7 @@
 
 use anyhow::Result;
 use base64::{engine::general_purpose::STANDARD as B64, Engine};
-use percent_encoding::{utf8_percent_encode, percent_decode_str, NON_ALPHANUMERIC};
+use percent_encoding::{percent_decode_str, utf8_percent_encode, NON_ALPHANUMERIC};
 use regex::Regex;
 use sha2::{Digest, Sha256};
 
@@ -29,7 +29,10 @@ pub enum Transform {
     HashSha256,
     CharWordLineCount,
     StripHtml,
-    RegexReplace { pattern: String, replacement: String },
+    RegexReplace {
+        pattern: String,
+        replacement: String,
+    },
 }
 
 impl Transform {
@@ -102,21 +105,18 @@ pub fn apply(input: &str, transform: &Transform) -> Result<String> {
             re.replace_all(input, " ").into_owned()
         }
 
-        Transform::UrlEncode => {
-            utf8_percent_encode(input, NON_ALPHANUMERIC).to_string()
-        }
+        Transform::UrlEncode => utf8_percent_encode(input, NON_ALPHANUMERIC).to_string(),
 
-        Transform::UrlDecode => {
-            percent_decode_str(input)
-                .decode_utf8()
-                .map(|s| s.into_owned())
-                .unwrap_or_else(|_| input.to_string())
-        }
+        Transform::UrlDecode => percent_decode_str(input)
+            .decode_utf8()
+            .map(|s| s.into_owned())
+            .unwrap_or_else(|_| input.to_string()),
 
         Transform::Base64Encode => B64.encode(input.as_bytes()),
 
         Transform::Base64Decode => {
-            let bytes = B64.decode(input.trim())
+            let bytes = B64
+                .decode(input.trim())
                 .map_err(|e| anyhow::anyhow!("Base64 decode error: {e}"))?;
             String::from_utf8(bytes)
                 .map_err(|e| anyhow::anyhow!("Base64 decode: not valid UTF-8: {e}"))?
@@ -134,13 +134,11 @@ pub fn apply(input: &str, transform: &Transform) -> Result<String> {
             serde_json::to_string(&val)?
         }
 
-        Transform::HexEncode => {
-            hex::encode(input.as_bytes())
-        }
+        Transform::HexEncode => hex::encode(input.as_bytes()),
 
         Transform::HexDecode => {
-            let bytes = hex::decode(input.trim())
-                .map_err(|e| anyhow::anyhow!("Hex decode error: {e}"))?;
+            let bytes =
+                hex::decode(input.trim()).map_err(|e| anyhow::anyhow!("Hex decode error: {e}"))?;
             String::from_utf8(bytes)
                 .map_err(|e| anyhow::anyhow!("Hex decode: not valid UTF-8: {e}"))?
         }
@@ -174,9 +172,11 @@ pub fn apply(input: &str, transform: &Transform) -> Result<String> {
             re.replace_all(input, "").into_owned()
         }
 
-        Transform::RegexReplace { pattern, replacement } => {
-            let re = Regex::new(pattern)
-                .map_err(|e| anyhow::anyhow!("Invalid regex: {e}"))?;
+        Transform::RegexReplace {
+            pattern,
+            replacement,
+        } => {
+            let re = Regex::new(pattern).map_err(|e| anyhow::anyhow!("Invalid regex: {e}"))?;
             re.replace_all(input, replacement.as_str()).into_owned()
         }
     })
@@ -213,12 +213,18 @@ mod tests {
 
     #[test]
     fn test_uppercase() {
-        assert_eq!(apply("hello world", &Transform::Uppercase).unwrap(), "HELLO WORLD");
+        assert_eq!(
+            apply("hello world", &Transform::Uppercase).unwrap(),
+            "HELLO WORLD"
+        );
     }
 
     #[test]
     fn test_title_case() {
-        assert_eq!(apply("the quick brown fox", &Transform::TitleCase).unwrap(), "The Quick Brown Fox");
+        assert_eq!(
+            apply("the quick brown fox", &Transform::TitleCase).unwrap(),
+            "The Quick Brown Fox"
+        );
     }
 
     #[test]

@@ -23,7 +23,10 @@ pub async fn run(store: Arc<Mutex<Store>>, config: Arc<Mutex<Config>>) -> Result
     // bail early if its disabled or the user never set their app id
     let (enabled, app_id_str) = {
         let cfg = config.lock().unwrap();
-        (cfg.discord.rich_presence, cfg.discord.application_id.clone())
+        (
+            cfg.discord.rich_presence,
+            cfg.discord.application_id.clone(),
+        )
     };
 
     if !enabled || app_id_str == "REPLACE_WITH_YOUR_APP_ID" {
@@ -31,7 +34,8 @@ pub async fn run(store: Arc<Mutex<Store>>, config: Arc<Mutex<Config>>) -> Result
         return Ok(());
     }
 
-    let app_id: u64 = app_id_str.parse()
+    let app_id: u64 = app_id_str
+        .parse()
         .map_err(|_| anyhow::anyhow!("discord.application_id must be a numeric snowflake ID"))?;
 
     // record when we started so the "elapsed" timer in discord is accurate
@@ -45,7 +49,9 @@ pub async fn run(store: Arc<Mutex<Store>>, config: Arc<Mutex<Config>>) -> Result
         match connect_and_update(app_id, session_start, &store, &config).await {
             Ok(_) => {}
             Err(e) => {
-                warn!("Discord presence disconnected: {e}. Reconnecting in {RECONNECT_DELAY_SECS}s…");
+                warn!(
+                    "Discord presence disconnected: {e}. Reconnecting in {RECONNECT_DELAY_SECS}s…"
+                );
                 sleep(Duration::from_secs(RECONNECT_DELAY_SECS)).await;
             }
         }
@@ -76,12 +82,13 @@ async fn connect_and_update(
         let item_count = store.lock().unwrap().len();
         let state = format!("{item_count} items in history");
 
-        client.set_activity(|act| {
-            act.state(&state)
-               .details("Managing clipboard")
-               .timestamps(|ts| ts.start(session_start))
-        })
-        .ok();
+        client
+            .set_activity(|act| {
+                act.state(&state)
+                    .details("Managing clipboard")
+                    .timestamps(|ts| ts.start(session_start))
+            })
+            .ok();
 
         debug!("Discord presence updated: {state}");
         sleep(Duration::from_secs(UPDATE_INTERVAL_SECS)).await;

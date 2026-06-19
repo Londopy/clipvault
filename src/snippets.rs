@@ -24,7 +24,12 @@ pub struct Snippet {
 }
 
 impl Snippet {
-    pub fn new(name: String, content: String, shortcode: Option<String>, category: Option<String>) -> Self {
+    pub fn new(
+        name: String,
+        content: String,
+        shortcode: Option<String>,
+        category: Option<String>,
+    ) -> Self {
         let now = Utc::now();
         Self {
             id: Uuid::new_v4().to_string(),
@@ -60,14 +65,17 @@ impl SnippetStore {
     pub fn load() -> Result<Self> {
         let path = Self::path();
         let snippets = if path.exists() {
-            let raw: SnippetsFile = serde_json::from_str(
-                &fs::read_to_string(&path).context("reading snippets file")?
-            ).context("parsing snippets file")?;
+            let raw: SnippetsFile =
+                serde_json::from_str(&fs::read_to_string(&path).context("reading snippets file")?)
+                    .context("parsing snippets file")?;
             raw.snippets
         } else {
             Vec::new()
         };
-        let mut store = Self { snippets, shortcode_map: HashMap::new() };
+        let mut store = Self {
+            snippets,
+            shortcode_map: HashMap::new(),
+        };
         store.rebuild_shortcode_map();
         Ok(store)
     }
@@ -77,7 +85,10 @@ impl SnippetStore {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)?;
         }
-        let file = SnippetsFile { version: 1, snippets: self.snippets.clone() };
+        let file = SnippetsFile {
+            version: 1,
+            snippets: self.snippets.clone(),
+        };
         fs::write(&path, serde_json::to_string_pretty(&file)?)?;
         Ok(())
     }
@@ -103,15 +114,31 @@ impl SnippetStore {
     }
 
     // update any fields that are Some, leave the rest alone
-    pub fn update(&mut self, id: &str, name: Option<String>, content: Option<String>,
-                  shortcode: Option<Option<String>>, category: Option<Option<String>>) -> Result<()>
-    {
-        let sn = self.snippets.iter_mut().find(|s| s.id == id)
+    pub fn update(
+        &mut self,
+        id: &str,
+        name: Option<String>,
+        content: Option<String>,
+        shortcode: Option<Option<String>>,
+        category: Option<Option<String>>,
+    ) -> Result<()> {
+        let sn = self
+            .snippets
+            .iter_mut()
+            .find(|s| s.id == id)
             .ok_or_else(|| anyhow::anyhow!("snippet not found: {id}"))?;
-        if let Some(n) = name { sn.name = n; }
-        if let Some(c) = content { sn.content = c; }
-        if let Some(sc) = shortcode { sn.shortcode = sc; }
-        if let Some(cat) = category { sn.category = cat; }
+        if let Some(n) = name {
+            sn.name = n;
+        }
+        if let Some(c) = content {
+            sn.content = c;
+        }
+        if let Some(sc) = shortcode {
+            sn.shortcode = sc;
+        }
+        if let Some(cat) = category {
+            sn.category = cat;
+        }
         sn.updated_at = Utc::now();
         self.rebuild_shortcode_map();
         self.save()
@@ -129,7 +156,9 @@ impl SnippetStore {
 
     // returns a sorted list of all category names (deduped)
     pub fn categories(&self) -> Vec<String> {
-        let mut cats: Vec<String> = self.snippets.iter()
+        let mut cats: Vec<String> = self
+            .snippets
+            .iter()
             .filter_map(|s| s.category.clone())
             .collect::<std::collections::HashSet<_>>()
             .into_iter()
@@ -155,15 +184,18 @@ impl SnippetStore {
     }
 
     pub fn export_json(&self, path: &PathBuf) -> Result<()> {
-        let file = SnippetsFile { version: 1, snippets: self.snippets.clone() };
+        let file = SnippetsFile {
+            version: 1,
+            snippets: self.snippets.clone(),
+        };
         fs::write(path, serde_json::to_string_pretty(&file)?)?;
         Ok(())
     }
 
     pub fn import_json(&mut self, path: &PathBuf) -> Result<usize> {
-        let raw: SnippetsFile = serde_json::from_str(
-            &fs::read_to_string(path).context("reading import file")?
-        ).context("parsing import file")?;
+        let raw: SnippetsFile =
+            serde_json::from_str(&fs::read_to_string(path).context("reading import file")?)
+                .context("parsing import file")?;
         let count = raw.snippets.len();
         for mut sn in raw.snippets {
             // give each imported snippet a fresh uuid so ids don't collide

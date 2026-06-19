@@ -2,12 +2,12 @@
 // picks the right platform-specific code at compile time
 // each os has its own submodule with the actual implementation
 
-#[cfg(target_os = "windows")]
-mod windows;
-#[cfg(target_os = "macos")]
-mod macos;
 #[cfg(target_os = "linux")]
 mod linux;
+#[cfg(target_os = "macos")]
+mod macos;
+#[cfg(target_os = "windows")]
+mod windows;
 
 // figures out which app the user just copied from
 pub fn get_source_app() -> Option<String> {
