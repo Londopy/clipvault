@@ -73,4 +73,17 @@ async fn connect_and_update(
             return Ok(());
         }
 
-        let item_count = store.lock().un
+        let item_count = store.lock().unwrap().len();
+        let state = format!("{item_count} items in history");
+
+        client.set_activity(|act| {
+            act.state(&state)
+               .details("Managing clipboard")
+               .timestamps(|ts| ts.start(session_start))
+        })
+        .ok();
+
+        debug!("Discord presence updated: {state}");
+        sleep(Duration::from_secs(UPDATE_INTERVAL_SECS)).await;
+    }
+}
