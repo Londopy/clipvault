@@ -93,3 +93,8 @@ pub fn system_is_dark() -> bool {
     {
         true // TODO: actually check NSApp.effectiveAppearance someday
     }
+    #[cfg(not(target_os = "macos"))]
+    {
+        true
+    }
+}
