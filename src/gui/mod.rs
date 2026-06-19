@@ -379,7 +379,7 @@ fn load_window_icon() -> egui::IconData {
         }
     }
     // fallback solid blue square if assets folder is missing
-    let rgba: Vec<u8> = vec![0x4f, 0x8e, 0xf7, 0xff].repeat(32 * 32);
+    let rgba: Vec<u8> = [0x4f, 0x8e, 0xf7, 0xff].repeat(32 * 32);
     egui::IconData {
         rgba,
         width: 32,

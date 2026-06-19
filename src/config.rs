@@ -9,7 +9,7 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
 // top level config - each section maps to a [section] in the toml
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Config {
     #[serde(default)]
     pub general: GeneralConfig,
@@ -187,20 +187,6 @@ impl Default for SecurityConfig {
             encrypt_history: false,
             incognito_hotkey: "ctrl+shift+i".into(),
             auto_clear_on_lock: false,
-        }
-    }
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            general: GeneralConfig::default(),
-            hotkeys: HotkeyConfig::default(),
-            gui: GuiConfig::default(),
-            notifications: NotificationConfig::default(),
-            discord: DiscordConfig::default(),
-            updater: UpdaterConfig::default(),
-            security: SecurityConfig::default(),
         }
     }
 }

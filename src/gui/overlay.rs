@@ -36,24 +36,13 @@ impl Tab {
 }
 
 // state for the transform popup (uppercase, base64, etc)
+#[derive(Default)]
 pub struct TransformMenu {
     pub open: bool,
     pub entry_id: Option<String>,
     pub regex_pattern: String,
     pub regex_replace: String,
     pub result: Option<Result<String, String>>,
-}
-
-impl Default for TransformMenu {
-    fn default() -> Self {
-        Self {
-            open: false,
-            entry_id: None,
-            regex_pattern: String::new(),
-            regex_replace: String::new(),
-            result: None,
-        }
-    }
 }
 
 // all the ui state for the overlay - search query, selected row, etc
@@ -202,14 +191,14 @@ impl Overlay {
                     let s = store.lock().unwrap();
                     s.history.iter().filter(|e| !e.is_pinned).cloned().collect()
                 };
-                self.draw_entry_list(ui, &entries, palette, max_items, show_ts, show_app, false)
+                self.draw_entry_list(ui, &entries, palette, max_items, show_ts, show_app)
             }
             Tab::Pinned => {
                 let entries: Vec<ClipEntry> = {
                     let s = store.lock().unwrap();
                     s.history.iter().filter(|e| e.is_pinned).cloned().collect()
                 };
-                self.draw_entry_list(ui, &entries, palette, max_items, show_ts, show_app, false)
+                self.draw_entry_list(ui, &entries, palette, max_items, show_ts, show_app)
             }
             Tab::Snippets => self.draw_snippets_list(ui, snippets, palette, max_items),
             Tab::Settings => self.draw_settings(ui, config, store, palette),
@@ -266,7 +255,6 @@ impl Overlay {
         max_items: usize,
         show_ts: bool,
         show_app: bool,
-        _is_pinned: bool,
     ) -> OverlayAction {
         let mut action = OverlayAction::None;
         let filtered = self.filtered_entries(entries);
@@ -757,10 +745,8 @@ impl Overlay {
 
         // arrow keys move the selection up and down
         let total = self.current_count(store, snippets);
-        if ctx.input(|i| i.key_pressed(Key::ArrowDown)) {
-            if self.selected_idx + 1 < total {
-                self.selected_idx += 1;
-            }
+        if ctx.input(|i| i.key_pressed(Key::ArrowDown)) && self.selected_idx + 1 < total {
+            self.selected_idx += 1;
         }
         if ctx.input(|i| i.key_pressed(Key::ArrowUp)) {
             self.selected_idx = self.selected_idx.saturating_sub(1);
@@ -833,7 +819,7 @@ impl Overlay {
             .iter()
             .filter_map(|e| self.matcher.fuzzy_match(&e.data, q).map(|score| (score, e)))
             .collect();
-        scored.sort_by(|a, b| b.0.cmp(&a.0));
+        scored.sort_by_key(|b| std::cmp::Reverse(b.0));
         scored.into_iter().map(|(_, e)| e).collect()
     }
 

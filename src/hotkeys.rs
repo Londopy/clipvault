@@ -195,41 +195,41 @@ pub fn run(config: Arc<Mutex<Config>>, tx: Sender<AppEvent>) -> Result<()> {
         let mut st = state.lock().unwrap();
         match event.event_type {
             EventType::KeyPress(key) => {
-                st.held.insert(key.clone());
+                st.held.insert(key);
 
                 // check each combo and send the right event
                 if st
                     .open_history
                     .as_ref()
-                    .map_or(false, |c| c.matches(&st.held, &key))
+                    .is_some_and(|c| c.matches(&st.held, &key))
                 {
                     debug!("hotkey: open_history");
                     let _ = tx.send(AppEvent::OpenHistory);
                 } else if st
                     .open_snippets
                     .as_ref()
-                    .map_or(false, |c| c.matches(&st.held, &key))
+                    .is_some_and(|c| c.matches(&st.held, &key))
                 {
                     debug!("hotkey: open_snippets");
                     let _ = tx.send(AppEvent::OpenSnippets);
                 } else if st
                     .clear_clipboard
                     .as_ref()
-                    .map_or(false, |c| c.matches(&st.held, &key))
+                    .is_some_and(|c| c.matches(&st.held, &key))
                 {
                     debug!("hotkey: clear_clipboard");
                     let _ = tx.send(AppEvent::ClearClipboard);
                 } else if st
                     .paste_last
                     .as_ref()
-                    .map_or(false, |c| c.matches(&st.held, &key))
+                    .is_some_and(|c| c.matches(&st.held, &key))
                 {
                     debug!("hotkey: paste_last");
                     let _ = tx.send(AppEvent::PasteLast);
                 } else if st
                     .incognito
                     .as_ref()
-                    .map_or(false, |c| c.matches(&st.held, &key))
+                    .is_some_and(|c| c.matches(&st.held, &key))
                 {
                     debug!("hotkey: toggle_incognito");
                     let _ = tx.send(AppEvent::ToggleIncognito);

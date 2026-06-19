@@ -271,7 +271,7 @@ impl Store {
             // generate a new random key and save it
             let mut k = [0u8; 32];
             OsRng.fill_bytes(&mut k);
-            fs::write(&key_path, &k)?;
+            fs::write(&key_path, k)?;
             k
         };
         self.enc_key = Some(key);

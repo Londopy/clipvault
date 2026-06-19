@@ -66,9 +66,11 @@ async fn connect_and_update(
 ) -> Result<()> {
     let mut client = Client::new(app_id);
 
-    client.on_ready(move |_ctx| {
-        debug!("Discord IPC ready");
-    });
+    client
+        .on_ready(move |_ctx| {
+            debug!("Discord IPC ready");
+        })
+        .persist();
 
     client.start();
 

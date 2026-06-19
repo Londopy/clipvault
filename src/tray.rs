@@ -117,6 +117,6 @@ fn load_icon() -> tray_icon::Icon {
         }
     }
     // last resort: solid blue 32x32 square so we don't crash if assets are missing
-    let rgba: Vec<u8> = vec![0x4f_u8, 0x8e, 0xf7, 0xff].repeat(32 * 32);
+    let rgba: Vec<u8> = [0x4f_u8, 0x8e, 0xf7, 0xff].repeat(32 * 32);
     tray_icon::Icon::from_rgba(rgba, 32, 32).expect("placeholder icon")
 }

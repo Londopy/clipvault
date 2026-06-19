@@ -35,7 +35,7 @@ pub async fn check_and_notify(
     debug!("Checking for updates…");
 
     // spawn_blocking because the http call would block the async runtime
-    let latest = tokio::task::spawn_blocking(|| fetch_latest_version()).await??;
+    let latest = tokio::task::spawn_blocking(fetch_latest_version).await??;
 
     let current =
         Version::parse(env!("CLIPVAULT_VERSION")).unwrap_or_else(|_| Version::new(0, 0, 0));

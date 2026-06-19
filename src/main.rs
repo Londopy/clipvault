@@ -2,6 +2,9 @@
 // entry point. spins up all the background threads then gives the main
 // thread to egui (it needs the main thread on windows/mac, annoying but whatever)
 
+// much of the snippet/transform/store API is scaffolded ahead of being wired up
+#![allow(dead_code)]
+
 mod config;
 mod daemon;
 mod discord;
