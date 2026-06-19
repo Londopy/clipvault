@@ -19,7 +19,7 @@ pub fn send_notification(title: &str, body: &str, config: &Config) -> Result<()>
 // windows uses winrt toast notifications
 #[cfg(target_os = "windows")]
 fn platform_notify(title: &str, body: &str, _duration_ms: u64) -> Result<()> {
-    use winrt_notification::{Duration, Sound, Toast};
+    use winrt_notification::{Duration, Toast};
     Toast::new(Toast::POWERSHELL_APP_ID)
         .title(title)
         .text1(body)

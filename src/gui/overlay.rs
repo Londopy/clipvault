@@ -508,7 +508,7 @@ impl Overlay {
                     ui.label(RichText::new("History limit:").color(palette.text));
                     ui.add(
                         egui::DragValue::new(&mut cfg.general.history_limit)
-                            .clamp_range(10..=10_000usize)
+                            .range(10..=10_000usize)
                             .speed(1.0),
                     );
                 });

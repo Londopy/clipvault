@@ -348,9 +348,9 @@ pub fn run(
         "ClipVault",
         native_options,
         Box::new(|cc| {
-            Box::new(ClipVaultApp::new(
+            Ok(Box::new(ClipVaultApp::new(
                 cc, store, config, snippets, event_tx, event_rx,
-            ))
+            )))
         }),
     )
     .map_err(|e| anyhow::anyhow!("eframe error: {e}"))?;

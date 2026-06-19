@@ -26,7 +26,8 @@ pub struct KeyCombo {
 impl KeyCombo {
     // turns a string like "ctrl+shift+v" into a KeyCombo
     pub fn parse(s: &str) -> Option<Self> {
-        let parts: Vec<&str> = s.to_lowercase().split('+').collect();
+        let lowered = s.to_lowercase();
+        let parts: Vec<&str> = lowered.split('+').collect();
         let mut ctrl = false;
         let mut shift = false;
         let mut alt = false;
@@ -142,7 +143,8 @@ struct HotkeyState {
 impl HotkeyState {
     fn from_config(cfg: &Config) -> Self {
         let hk = &cfg.hotkeys;
-        let mod_parts: Vec<&str> = hk.instant_paste_mod.to_lowercase().split('+').collect();
+        let lowered = hk.instant_paste_mod.to_lowercase();
+        let mod_parts: Vec<&str> = lowered.split('+').collect();
         let im_ctrl = mod_parts.contains(&"ctrl") || mod_parts.contains(&"control");
         let im_alt = mod_parts.contains(&"alt");
         let im_shift = mod_parts.contains(&"shift");
