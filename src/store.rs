@@ -251,6 +251,10 @@ impl Store {
         self.history.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.history.is_empty()
+    }
+
     // encryption stuff below - aes-256-gcm with a random key stored next to the history file
     // not ideal (key next to the data) but good enough for now, TODO: use OS keychain
 

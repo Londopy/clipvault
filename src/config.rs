@@ -244,11 +244,11 @@ impl Config {
     // basic sanity checks - dont want someone setting history_limit to 0 and breaking everything
     pub fn validate(&self) -> Result<()> {
         anyhow::ensure!(
-            self.general.history_limit >= 1 && self.general.history_limit <= 10_000,
+            (1..=10_000).contains(&self.general.history_limit),
             "history_limit must be between 1 and 10000"
         );
         anyhow::ensure!(
-            self.gui.max_visible_items >= 1 && self.gui.max_visible_items <= 100,
+            (1..=100).contains(&self.gui.max_visible_items),
             "max_visible_items must be between 1 and 100"
         );
         anyhow::ensure!(
@@ -269,7 +269,7 @@ impl Config {
     pub fn open_config_dir() {
         let dir = Self::path()
             .parent()
-            .unwrap_or(&std::path::Path::new("."))
+            .unwrap_or_else(|| std::path::Path::new("."))
             .to_path_buf();
         #[cfg(target_os = "windows")]
         {

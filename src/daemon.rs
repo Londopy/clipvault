@@ -121,5 +121,5 @@ fn looks_like_password(s: &str) -> bool {
     let has_digit = trimmed.chars().any(|c| c.is_ascii_digit());
     let has_symbol = trimmed.chars().any(|c| !c.is_alphanumeric());
     let len = trimmed.len();
-    len >= 8 && len <= 64 && has_upper && has_lower && has_digit && has_symbol
+    (8..=64).contains(&len) && has_upper && has_lower && has_digit && has_symbol
 }

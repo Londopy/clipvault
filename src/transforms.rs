@@ -146,12 +146,12 @@ pub fn apply(input: &str, transform: &Transform) -> Result<String> {
         Transform::HashMd5 => {
             // md5 is kinda broken for actual crypto but fine as a display thing
             // just add the `md5` crate to Cargo.toml if you want this to actually work
-            format!("[md5 — add the `md5` crate to Cargo.toml for this transform]")
+            "[md5 — add the `md5` crate to Cargo.toml for this transform]".to_string()
         }
 
         Transform::HashSha1 => {
             // same deal, need the `sha1` crate
-            format!("[sha1 — add the `sha1` crate to Cargo.toml for this transform]")
+            "[sha1 — add the `sha1` crate to Cargo.toml for this transform]".to_string()
         }
 
         Transform::HashSha256 => {
