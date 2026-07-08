@@ -33,6 +33,7 @@ fn platform_notify(title: &str, body: &str, _duration_ms: u64) -> Result<()> {
 #[cfg(target_os = "macos")]
 fn platform_notify(title: &str, body: &str, _duration_ms: u64) -> Result<()> {
     mac_notification_sys::send_notification(title, None, body, None)
+        .map(|_| ())
         .map_err(|e| anyhow::anyhow!("macOS notification error: {e}"))
 }
 
