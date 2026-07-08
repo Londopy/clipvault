@@ -1,0 +1,13 @@
+# cargo-audit configuration
+
+[advisories]
+ignore = [
+    # quick-xml < 0.41: quadratic runtime on duplicate-attribute check.
+    # Transitive via self_update 0.44 and wayland-scanner 0.31 — neither has
+    # a stable release on quick-xml >= 0.41 yet. Low exposure: wayland-scanner
+    # runs at build time only; self_update parses GitHub release metadata.
+    # TODO: remove when self_update 1.0 stabilizes / wayland-scanner bumps.
+    "RUSTSEC-2026-0194",
+    # quick-xml < 0.41: NsReader memory-exhaustion DoS. Same parents as above.
+    "RUSTSEC-2026-0195",
+]
