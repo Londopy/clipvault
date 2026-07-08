@@ -2,7 +2,7 @@
 // the little preview area at the bottom of the overlay
 // shows the full text, or an image thumbnail, or file info depending on the entry type
 
-use egui::{Color32, RichText, ScrollArea, Ui};
+use egui::{RichText, ScrollArea, Ui};
 
 use super::theme::Palette;
 use crate::store::{ClipEntry, ContentType};
@@ -11,20 +11,22 @@ pub struct PreviewPane;
 
 impl PreviewPane {
     pub fn show(ui: &mut Ui, entry: &ClipEntry, palette: &Palette) {
-        ui.separator();
-        ui.add_space(4.0);
+        ui.add_space(8.0);
 
-        match entry.content_type {
-            ContentType::Text => {
-                show_text_preview(ui, entry, palette);
-            }
-            ContentType::Image => {
-                show_image_preview(ui, entry, palette);
-            }
-            ContentType::FilePath => {
-                show_filepath_preview(ui, entry, palette);
-            }
-        }
+        // preview sits in its own rounded card so it reads as a distinct zone
+        egui::Frame::none()
+            .fill(palette.bg_secondary)
+            .rounding(egui::Rounding::same(10.0))
+            .stroke(egui::Stroke::new(1.0, palette.border))
+            .inner_margin(egui::Margin::same(10.0))
+            .show(ui, |ui| {
+                ui.set_width(ui.available_width());
+                match entry.content_type {
+                    ContentType::Text => show_text_preview(ui, entry, palette),
+                    ContentType::Image => show_image_preview(ui, entry, palette),
+                    ContentType::FilePath => show_filepath_preview(ui, entry, palette),
+                }
+            });
     }
 }
 
@@ -108,7 +110,7 @@ fn show_filepath_preview(ui: &mut Ui, entry: &ClipEntry, palette: &Palette) {
     if exists {
         ui.label(
             RichText::new("✓ File exists")
-                .color(Color32::from_rgb(80, 200, 100))
+                .color(palette.success)
                 .small(),
         );
         if let Ok(meta) = std::fs::metadata(path) {

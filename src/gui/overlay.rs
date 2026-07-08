@@ -3,12 +3,13 @@
 // opens when you hit the hotkey, closes when you press escape or paste something
 
 use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
-use egui::{Context, Key, Modifiers, RichText, ScrollArea, Ui};
+use egui::{Align, Context, Id, Key, Modifiers, RichText, Rounding, ScrollArea, Sense, Stroke, Ui};
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 
 use super::preview::PreviewPane;
-use super::theme::Palette;
+use super::theme::{lerp_color, Palette};
 use crate::config::Config;
 use crate::snippets::SnippetStore;
 use crate::store::{ClipEntry, Store};
@@ -53,6 +54,12 @@ pub struct Overlay {
     pub focus_search: bool,
     pub transform_menu: TransformMenu,
     matcher: SkimMatcherV2,
+    // when the overlay was opened - drives the fade-in animation
+    open_at: Option<Instant>,
+    // keyboard moved the selection, so scroll it into view this frame
+    scroll_to_selected: bool,
+    // whether the search box had focus last frame (for the accent border)
+    search_focused: bool,
 }
 
 impl Default for Overlay {
@@ -64,6 +71,9 @@ impl Default for Overlay {
             focus_search: false,
             transform_menu: TransformMenu::default(),
             matcher: SkimMatcherV2::default(),
+            open_at: None,
+            scroll_to_selected: false,
+            search_focused: false,
         }
     }
 }
@@ -83,6 +93,8 @@ impl Overlay {
         self.search_query = String::new();
         self.selected_idx = 0;
         self.focus_search = false;
+        self.open_at = Some(Instant::now());
+        self.scroll_to_selected = true;
     }
 
     pub fn show(
@@ -95,13 +107,31 @@ impl Overlay {
     ) -> OverlayAction {
         let mut action = OverlayAction::None;
 
+        // eased fade-in when the overlay opens (ease-out cubic over 180ms)
+        let t = self
+            .open_at
+            .map(|at| (at.elapsed().as_secs_f32() / 0.18).min(1.0))
+            .unwrap_or(1.0);
+        let t = 1.0 - (1.0 - t).powi(3);
+        if t < 1.0 {
+            ctx.request_repaint();
+        }
+
+        let mut frame = egui::Frame::window(&ctx.style());
+        if t < 1.0 {
+            frame.fill = frame.fill.gamma_multiply(t);
+            frame.stroke.color = frame.stroke.color.gamma_multiply(t);
+            frame.shadow.color = frame.shadow.color.gamma_multiply(t);
+        }
+
         // Main overlay window
         egui::Window::new("ClipVault")
             .resizable(false)
             .collapsible(false)
             .title_bar(false)
-            .frame(egui::Frame::window(&ctx.style()))
+            .frame(frame)
             .show(ctx, |ui| {
+                ui.set_opacity(t);
                 action = self.draw_content(ui, store, snippets, config, palette);
             });
 
@@ -120,18 +150,16 @@ impl Overlay {
 
         // ── Header / tabs ─────────────────────────────────────────────────────
         ui.horizontal(|ui| {
+            // little wordmark glyph so the overlay has an identity
+            ui.label(RichText::new("❖").color(palette.accent).size(16.0));
+            ui.add_space(2.0);
             for (tab, label) in [
                 (Tab::History, "History"),
                 (Tab::Pinned, "Pinned"),
                 (Tab::Snippets, "Snippets"),
             ] {
                 let selected = self.tab == tab;
-                let text = RichText::new(label).color(if selected {
-                    palette.accent
-                } else {
-                    palette.text_dim
-                });
-                if ui.selectable_label(selected, text).clicked() {
+                if pill_tab(ui, selected, label, palette).clicked() {
                     self.tab = tab;
                     self.selected_idx = 0;
                 }
@@ -139,13 +167,7 @@ impl Overlay {
             // settings gear sits on the far right
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 let selected = self.tab == Tab::Settings;
-                let text = RichText::new("⚙").color(if selected {
-                    palette.accent
-                } else {
-                    palette.text_dim
-                });
-                if ui
-                    .selectable_label(selected, text)
+                if pill_tab(ui, selected, "⚙", palette)
                     .on_hover_text("Settings")
                     .clicked()
                 {
@@ -158,21 +180,39 @@ impl Overlay {
             });
         });
 
-        ui.separator();
+        ui.add_space(8.0);
 
         // ── Search bar ────────────────────────────────────────────────────────
-        let search_resp = ui.add(
-            egui::TextEdit::singleline(&mut self.search_query)
-                .hint_text("Search…")
-                .desired_width(f32::INFINITY)
-                .frame(true),
-        );
+        let search_stroke = if self.search_focused {
+            Stroke::new(1.0, palette.accent)
+        } else {
+            Stroke::new(1.0, palette.border)
+        };
+        let search_resp = egui::Frame::none()
+            .fill(palette.bg_secondary)
+            .rounding(Rounding::same(10.0))
+            .stroke(search_stroke)
+            .inner_margin(egui::Margin::symmetric(10.0, 6.0))
+            .show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    ui.label(RichText::new("🔍").small().color(palette.text_dim));
+                    ui.add(
+                        egui::TextEdit::singleline(&mut self.search_query)
+                            .hint_text("Type to filter…")
+                            .desired_width(f32::INFINITY)
+                            .frame(false),
+                    )
+                })
+                .inner
+            })
+            .inner;
+        self.search_focused = search_resp.has_focus();
         if self.focus_search {
             search_resp.request_focus();
             self.focus_search = false;
         }
 
-        ui.add_space(4.0);
+        ui.add_space(6.0);
 
         // ── Item list ─────────────────────────────────────────────────────────
         let (max_items, show_ts, show_app) = {
@@ -238,6 +278,35 @@ impl Overlay {
             }
         }
 
+        // ── Footer hint bar ───────────────────────────────────────────────────
+        ui.add_space(8.0);
+        let hints: &[(&str, &str)] = if self.tab == Tab::Settings {
+            &[("esc", "close")]
+        } else {
+            &[
+                ("↑↓", "move"),
+                ("↵", "paste"),
+                ("p", "pin"),
+                ("e", "transform"),
+                ("/", "search"),
+                ("esc", "close"),
+            ]
+        };
+        ui.horizontal_wrapped(|ui| {
+            ui.spacing_mut().item_spacing.x = 5.0;
+            for (key, desc) in hints {
+                egui::Frame::none()
+                    .fill(palette.bg_secondary)
+                    .rounding(Rounding::same(5.0))
+                    .inner_margin(egui::Margin::symmetric(5.0, 1.0))
+                    .show(ui, |ui| {
+                        ui.label(RichText::new(*key).monospace().small().color(palette.text));
+                    });
+                ui.label(RichText::new(*desc).small().color(palette.text_dim));
+                ui.add_space(3.0);
+            }
+        });
+
         // ── Keyboard navigation ───────────────────────────────────────────────
         let kb_action = self.handle_keyboard(ui, store, snippets);
         if !matches!(kb_action, OverlayAction::None) {
@@ -262,26 +331,31 @@ impl Overlay {
         ScrollArea::vertical()
             .max_height(max_items as f32 * 44.0)
             .show(ui, |ui| {
+                if filtered.is_empty() {
+                    empty_state(ui, &self.search_query, palette);
+                }
                 for (idx, entry) in filtered.iter().enumerate().take(max_items) {
                     let selected = idx == self.selected_idx;
-                    let bg_color = if selected {
-                        palette.bg_highlight
-                    } else {
-                        palette.bg_secondary
-                    };
+                    // smooth blend between resting and selected state
+                    let t = ui
+                        .ctx()
+                        .animate_bool(Id::new(("row_sel", &entry.id)), selected);
+                    let bg_color = lerp_color(palette.bg_secondary, palette.bg_highlight, t);
+                    let text_color = lerp_color(palette.text_dim, palette.text, t);
 
                     let item_resp = egui::Frame::none()
                         .fill(bg_color)
-                        .rounding(6.0)
-                        .inner_margin(egui::Margin::symmetric(8.0, 4.0))
+                        .rounding(Rounding::same(8.0))
+                        .inner_margin(egui::Margin::symmetric(10.0, 6.0))
                         .show(ui, |ui| {
                             ui.set_width(ui.available_width());
                             ui.horizontal(|ui| {
                                 // show a number for the first 9 so you know what ctrl+alt+n does
                                 if idx < 9 {
                                     ui.label(
-                                        RichText::new(format!("{}.", idx + 1))
-                                            .color(palette.text_dim)
+                                        RichText::new(format!("{}", idx + 1))
+                                            .monospace()
+                                            .color(lerp_color(palette.text_dim, palette.accent, t))
                                             .small(),
                                     );
                                 }
@@ -289,19 +363,29 @@ impl Overlay {
                                 if entry.is_pinned {
                                     ui.label(RichText::new("📌").small());
                                 }
-                                // Preview text
-                                ui.label(RichText::new(entry.preview(80)).color(if selected {
-                                    palette.text
-                                } else {
-                                    palette.text_dim
-                                }));
+                                // Preview text, truncated so metadata always fits
+                                let reserve = if show_ts || show_app { 110.0 } else { 8.0 };
+                                ui.scope(|ui| {
+                                    ui.set_max_width((ui.available_width() - reserve).max(40.0));
+                                    ui.add(
+                                        egui::Label::new(
+                                            RichText::new(entry.preview(80))
+                                                .monospace()
+                                                .color(text_color),
+                                        )
+                                        .truncate(),
+                                    );
+                                });
                                 ui.with_layout(
                                     egui::Layout::right_to_left(egui::Align::Center),
                                     |ui| {
                                         if show_ts {
                                             let ts = entry.timestamp.format("%H:%M").to_string();
                                             ui.label(
-                                                RichText::new(ts).color(palette.text_dim).small(),
+                                                RichText::new(ts)
+                                                    .monospace()
+                                                    .color(palette.text_dim)
+                                                    .small(),
                                             );
                                         }
                                         if show_app {
@@ -318,17 +402,45 @@ impl Overlay {
                             });
                         });
 
-                    if item_resp.response.clicked() {
+                    let rect = item_resp.response.rect;
+                    let response = ui.interact(rect, Id::new(("row_i", &entry.id)), Sense::click());
+
+                    // animated accent bar hugging the left edge of the selected row
+                    if t > 0.01 {
+                        let bar = egui::Rect::from_min_size(
+                            rect.left_top() + egui::vec2(0.0, 5.0),
+                            egui::vec2(3.0, (rect.height() - 10.0).max(0.0)),
+                        );
+                        ui.painter().rect_filled(
+                            bar,
+                            Rounding::same(2.0),
+                            palette.accent.gamma_multiply(t),
+                        );
+                    }
+                    // soft accent ring on hover
+                    if response.hovered() && !selected {
+                        ui.painter().rect_stroke(
+                            rect,
+                            Rounding::same(8.0),
+                            Stroke::new(1.0, palette.accent.linear_multiply(0.35)),
+                        );
+                    }
+                    // keep keyboard selection in view
+                    if selected && self.scroll_to_selected {
+                        response.scroll_to_me(Some(Align::Center));
+                    }
+
+                    if response.clicked() {
                         self.selected_idx = idx;
                     }
 
                     // double click pastes immediately
-                    if item_resp.response.double_clicked() {
+                    if response.double_clicked() {
                         action = OverlayAction::PasteEntry(entry.data.clone());
                     }
 
                     // right click for more options
-                    item_resp.response.context_menu(|ui| {
+                    response.context_menu(|ui| {
                         if ui.button("Paste").clicked() {
                             action = OverlayAction::PasteEntry(entry.data.clone());
                             ui.close_menu();
@@ -344,8 +456,9 @@ impl Overlay {
                         }
                     });
 
-                    ui.add_space(2.0);
+                    ui.add_space(3.0);
                 }
+                self.scroll_to_selected = false;
             });
 
         action
@@ -376,18 +489,20 @@ impl Overlay {
         ScrollArea::vertical()
             .max_height(max_items as f32 * 44.0)
             .show(ui, |ui| {
+                if filtered.is_empty() {
+                    empty_state(ui, &self.search_query, palette);
+                }
                 for (idx, sn) in filtered.iter().enumerate().take(max_items) {
                     let selected = idx == self.selected_idx;
-                    let bg_color = if selected {
-                        palette.bg_highlight
-                    } else {
-                        palette.bg_secondary
-                    };
+                    let t = ui
+                        .ctx()
+                        .animate_bool(Id::new(("snip_sel", &sn.name, idx)), selected);
+                    let bg_color = lerp_color(palette.bg_secondary, palette.bg_highlight, t);
 
                     let item_resp = egui::Frame::none()
                         .fill(bg_color)
-                        .rounding(6.0)
-                        .inner_margin(egui::Margin::symmetric(8.0, 4.0))
+                        .rounding(Rounding::same(8.0))
+                        .inner_margin(egui::Margin::symmetric(10.0, 6.0))
                         .show(ui, |ui| {
                             ui.set_width(ui.available_width());
                             ui.horizontal(|ui| {
@@ -395,6 +510,7 @@ impl Overlay {
                                 if let Some(ref sc) = sn.shortcode {
                                     ui.label(
                                         RichText::new(format!(";;{sc}"))
+                                            .monospace()
                                             .color(palette.accent)
                                             .small(),
                                     );
@@ -414,14 +530,41 @@ impl Overlay {
                             });
                         });
 
-                    if item_resp.response.clicked() {
+                    let rect = item_resp.response.rect;
+                    let response =
+                        ui.interact(rect, Id::new(("snip_i", &sn.name, idx)), Sense::click());
+
+                    if t > 0.01 {
+                        let bar = egui::Rect::from_min_size(
+                            rect.left_top() + egui::vec2(0.0, 5.0),
+                            egui::vec2(3.0, (rect.height() - 10.0).max(0.0)),
+                        );
+                        ui.painter().rect_filled(
+                            bar,
+                            Rounding::same(2.0),
+                            palette.accent.gamma_multiply(t),
+                        );
+                    }
+                    if response.hovered() && !selected {
+                        ui.painter().rect_stroke(
+                            rect,
+                            Rounding::same(8.0),
+                            Stroke::new(1.0, palette.accent.linear_multiply(0.35)),
+                        );
+                    }
+                    if selected && self.scroll_to_selected {
+                        response.scroll_to_me(Some(Align::Center));
+                    }
+
+                    if response.clicked() {
                         self.selected_idx = idx;
                     }
-                    if item_resp.response.double_clicked() {
+                    if response.double_clicked() {
                         action = OverlayAction::PasteEntry(sn.expanded_content());
                     }
-                    ui.add_space(2.0);
+                    ui.add_space(3.0);
                 }
+                self.scroll_to_selected = false;
             });
 
         action
@@ -666,21 +809,23 @@ impl Overlay {
                     });
 
                 if let Some(data) = entry_data {
-                    // show buttons for each transform
-                    for t in Transform::all_simple() {
-                        if ui.button(t.label()).clicked() {
-                            match apply_transform(&data, &t) {
-                                Ok(result) => {
-                                    self.transform_menu.result = Some(Ok(result.clone()));
-                                    action = OverlayAction::PasteEntry(result);
-                                    self.transform_menu.open = false;
-                                }
-                                Err(e) => {
-                                    self.transform_menu.result = Some(Err(e.to_string()));
+                    // show buttons for each transform, flowing left to right
+                    ui.horizontal_wrapped(|ui| {
+                        for t in Transform::all_simple() {
+                            if ui.button(t.label()).clicked() {
+                                match apply_transform(&data, &t) {
+                                    Ok(result) => {
+                                        self.transform_menu.result = Some(Ok(result.clone()));
+                                        action = OverlayAction::PasteEntry(result);
+                                        self.transform_menu.open = false;
+                                    }
+                                    Err(e) => {
+                                        self.transform_menu.result = Some(Err(e.to_string()));
+                                    }
                                 }
                             }
                         }
-                    }
+                    });
 
                     ui.separator();
                     ui.label(RichText::new("Regex Replace").color(palette.text));
@@ -741,15 +886,18 @@ impl Overlay {
         if ctx.input(|i| i.key_pressed(Key::Tab) && i.modifiers == Modifiers::NONE) {
             self.tab = self.tab.next();
             self.selected_idx = 0;
+            self.scroll_to_selected = true;
         }
 
         // arrow keys move the selection up and down
         let total = self.current_count(store, snippets);
         if ctx.input(|i| i.key_pressed(Key::ArrowDown)) && self.selected_idx + 1 < total {
             self.selected_idx += 1;
+            self.scroll_to_selected = true;
         }
         if ctx.input(|i| i.key_pressed(Key::ArrowUp)) {
             self.selected_idx = self.selected_idx.saturating_sub(1);
+            self.scroll_to_selected = true;
         }
 
         // enter pastes the selected item
@@ -913,4 +1061,54 @@ impl Overlay {
             }
         }
     }
+}
+
+// ── free helpers ─────────────────────────────────────────────────────────────
+
+// pill-shaped tab button with an animated accent blend
+fn pill_tab(ui: &mut Ui, selected: bool, label: &str, palette: &Palette) -> egui::Response {
+    let t = ui
+        .ctx()
+        .animate_bool(Id::new(("pill_tab", label)), selected);
+    let fill = lerp_color(palette.bg, palette.accent_soft(), t);
+    let text_color = lerp_color(palette.text_dim, palette.accent, t);
+    let stroke_color = lerp_color(palette.bg, palette.accent.linear_multiply(0.5), t);
+    let resp = ui.add(
+        egui::Button::new(RichText::new(label).color(text_color))
+            .fill(fill)
+            .stroke(Stroke::new(1.0, stroke_color))
+            .rounding(Rounding::same(999.0)),
+    );
+    if resp.hovered() && !selected {
+        ui.painter().rect_stroke(
+            resp.rect,
+            Rounding::same(999.0),
+            Stroke::new(1.0, palette.accent.linear_multiply(0.3)),
+        );
+    }
+    resp
+}
+
+// friendly centered message when a list has nothing to show
+fn empty_state(ui: &mut Ui, query: &str, palette: &Palette) {
+    ui.add_space(28.0);
+    ui.vertical_centered(|ui| {
+        ui.label(RichText::new("◌").size(26.0).color(palette.text_dim));
+        if query.trim().is_empty() {
+            ui.label(RichText::new("Nothing here yet").color(palette.text));
+            ui.label(
+                RichText::new("Copy something and it will show up here")
+                    .small()
+                    .color(palette.text_dim),
+            );
+        } else {
+            ui.label(RichText::new("No matches").color(palette.text));
+            ui.label(
+                RichText::new(format!("Nothing matched \"{}\"", query.trim()))
+                    .small()
+                    .color(palette.text_dim),
+            );
+        }
+    });
+    ui.add_space(28.0);
 }

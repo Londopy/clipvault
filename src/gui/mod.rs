@@ -28,7 +28,7 @@ use crate::tray::{
 };
 
 use self::overlay::{Overlay, OverlayAction, Tab};
-use self::theme::{build_visuals, parse_hex_color, Palette};
+use self::theme::{apply_style, build_visuals, parse_hex_color, Palette};
 
 // all the things that can happen - hotkeys and tray clicks both send these
 #[derive(Debug)]
@@ -71,6 +71,7 @@ impl ClipVaultApp {
     ) -> Self {
         let palette = build_palette(&config.lock().unwrap());
         cc.egui_ctx.set_visuals(build_visuals(&palette));
+        apply_style(&cc.egui_ctx);
 
         // using egui default fonts for now, can customize later
         cc.egui_ctx.set_fonts(egui::FontDefinitions::default());
@@ -247,6 +248,7 @@ impl ClipVaultApp {
     fn rebuild_palette(&mut self, ctx: &Context) {
         self.palette = build_palette(&self.config.lock().unwrap());
         ctx.set_visuals(build_visuals(&self.palette));
+        apply_style(ctx);
     }
 }
 
