@@ -18,28 +18,10 @@ jobs:
         include:
           - target: x86_64-pc-windows-msvc
             os: windows-latest
-            binary: clipvault.exe
-            archive: zip
-
-          - target: x86_64-apple-darwin
-            os: macos-latest
-            binary: clipvault
-            archive: tar.gz
-
-          - target: aarch64-apple-darwin
-            os: macos-latest
-            binary: clipvault
-            archive: tar.gz
-
-          - target: x86_64-unknown-linux-musl
+          - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
-            binary: clipvault
-            archive: tar.gz
-
-          - target: aarch64-unknown-linux-musl
-            os: ubuntu-latest
-            binary: clipvault
-            archive: tar.gz
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-24.04-arm
 
     steps:
       - uses: actions/checkout@v4
@@ -63,56 +45,40 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y \
-            musl-tools libx11-dev libxi-dev libxtst-dev \
-            libdbus-1-dev pkg-config libssl-dev libxdo-dev \
-            libgtk-3-dev gcc-aarch64-linux-gnu
+            libx11-dev libxi-dev libxtst-dev \
+            libdbus-1-dev pkg-config libssl-dev \
+            libxdo-dev libgtk-3-dev
 
       - name: Build release binary
         run: cargo build --release --target ${{ matrix.target }}
 
-      # ── Package ──────────────────────────────────────────────────────────────
+      # ── Package ──────────────────────────────────────────────────────────
 
       - name: Package (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $tag   = "${{ github.ref_name }}"
-          $name  = "clipvault-$tag-${{ matrix.target }}"
-          New-Item -ItemType Directory -Path dist
-          Copy-Item "target\${{ matrix.target }}\release\${{ matrix.binary }}" dist\
+          $name = "clipvault-${{ github.ref_name }}-${{ matrix.target }}"
+          New-Item -ItemType Directory -Path dist | Out-Null
+          Copy-Item "target\${{ matrix.target }}\release\clipvault.exe" dist\
           Compress-Archive -Path "dist\*" -DestinationPath "$name.zip"
-          # MSI via cargo-wix (optional; requires wix toolset on the runner)
-          # cargo wix --target ${{ matrix.target }}
 
-      - name: Package (macOS / Linux)
-        if: runner.os != 'Windows'
+      - name: Package (Linux)
+        if: runner.os == 'Linux'
         run: |
-          TAG="${{ github.ref_name }}"
-          NAME="clipvault-${TAG}-${{ matrix.target }}"
+          NAME="clipvault-${{ github.ref_name }}-${{ matrix.target }}"
           mkdir dist
-          cp "target/${{ matrix.target }}/release/${{ matrix.binary }}" dist/
+          cp "target/${{ matrix.target }}/release/clipvault" dist/
           tar czf "${NAME}.tar.gz" -C dist .
 
-      # macOS: create universal binary and .dmg
-      - name: Create macOS universal binary
-        if: runner.os == 'macOS' && matrix.target == 'aarch64-apple-darwin'
-        run: |
-          lipo -create \
-            target/x86_64-apple-darwin/release/clipvault \
-            target/aarch64-apple-darwin/release/clipvault \
-            -output clipvault-universal
-          # hdiutil to package into .dmg
-          mkdir -p dmg_tmp/ClipVault.app/Contents/MacOS
-          cp clipvault-universal dmg_tmp/ClipVault.app/Contents/MacOS/clipvault
-          hdiutil create -volname "ClipVault" -srcfolder dmg_tmp \
-            -ov -format UDZO "clipvault-${{ github.ref_name }}-universal-macos.dmg"
-
-      # ── Checksums ────────────────────────────────────────────────────────────
+      # ── Checksums (per-target filename so they don't collide on merge) ───
 
       - name: Generate SHA-256 checksums
         shell: bash
         run: |
-          shasum -a 256 clipvault-*.{zip,tar.gz,dmg} 2>/dev/null >> checksums.txt || true
+          shopt -s nullglob
+          shasum -a 256 clipvault-*.zip clipvault-*.tar.gz > "checksums-${{ matrix.target }}.txt"
+          cat "checksums-${{ matrix.target }}.txt"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -121,21 +87,79 @@ jobs:
           path: |
             clipvault-*.zip
             clipvault-*.tar.gz
-            clipvault-*.dmg
-            checksums.txt
+            checksums-*.txt
 
-  # ── Release ──────────────────────────────────────────────────────────────────
+  # Both Apple targets in one job so lipo has both binaries for the
+  # universal build.
+  build-macos:
+    name: Build macOS (x86_64 + aarch64 + universal)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-apple-darwin, aarch64-apple-darwin
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target/
+          key: macos-universal-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build release binaries
+        run: |
+          cargo build --release --target x86_64-apple-darwin
+          cargo build --release --target aarch64-apple-darwin
+
+      - name: Package tarballs
+        run: |
+          TAG="${{ github.ref_name }}"
+          for TARGET in x86_64-apple-darwin aarch64-apple-darwin; do
+            mkdir -p "dist-${TARGET}"
+            cp "target/${TARGET}/release/clipvault" "dist-${TARGET}/"
+            tar czf "clipvault-${TAG}-${TARGET}.tar.gz" -C "dist-${TARGET}" .
+          done
+
+      - name: Create universal binary and .dmg
+        run: |
+          lipo -create \
+            target/x86_64-apple-darwin/release/clipvault \
+            target/aarch64-apple-darwin/release/clipvault \
+            -output clipvault-universal
+          mkdir -p dmg_tmp/ClipVault.app/Contents/MacOS
+          cp clipvault-universal dmg_tmp/ClipVault.app/Contents/MacOS/clipvault
+          hdiutil create -volname "ClipVault" -srcfolder dmg_tmp \
+            -ov -format UDZO "clipvault-${{ github.ref_name }}-universal-macos.dmg"
+
+      - name: Generate SHA-256 checksums
+        run: |
+          shasum -a 256 clipvault-*.tar.gz clipvault-*.dmg > checksums-macos.txt
+          cat checksums-macos.txt
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-artifacts
+          path: |
+            clipvault-*.tar.gz
+            clipvault-*.dmg
+            checksums-*.txt
+
+  # ── Release ─────────────────────────────────────────────────────────────
 
   publish:
     name: Publish GitHub Release
-    needs: build
+    needs: [build, build-macos]
     runs-on: ubuntu-latest
     permissions:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4
-
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
@@ -143,11 +167,9 @@ jobs:
           merge-multiple: true
 
       - name: Merge checksums
-        run: cat artifacts/checksums.txt >> checksums.txt
-
-      - name: cosign sign artifacts
-        uses: sigstore/cosign-installer@v3
-        continue-on-error: true
+        run: |
+          cat artifacts/checksums-*.txt > checksums.txt
+          cat checksums.txt
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
