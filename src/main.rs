@@ -40,16 +40,6 @@ fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     info!("ClipVault {} starting", env!("CLIPVAULT_VERSION"));
 
-    // single-instance guard: a second copy would run its own clipboard
-    // daemon and hotkey listener and fight the first one. binding a
-    // localhost port is a portable, dependency-free mutex; the listener
-    // lives for the life of the process.
-    let instance_lock = std::net::TcpListener::bind(("127.0.0.1", 48757));
-    if instance_lock.is_err() {
-        log::warn!("ClipVault is already running - exiting this copy");
-        return Ok(());
-    }
-
     // load config from disk (or write defaults if it doesnt exist yet)
     let config = Arc::new(Mutex::new(Config::load()?));
 
@@ -61,6 +51,28 @@ fn main() -> Result<()> {
 
     // channel for sending events from hotkeys/tray/updater to the gui
     let (event_tx, event_rx) = std::sync::mpsc::channel::<AppEvent>();
+
+    // single-instance guard that doubles as a "please open" signal: the first
+    // copy holds a localhost port and opens its overlay whenever anything
+    // connects; a second copy (user double-clicked the exe again) just pokes
+    // the port and exits, which pops the running copy's window up.
+    match std::net::TcpListener::bind(("127.0.0.1", 48757)) {
+        Ok(listener) => {
+            let tx = event_tx.clone();
+            thread::Builder::new()
+                .name("clipvault-instance".into())
+                .spawn(move || {
+                    for _conn in listener.incoming().flatten() {
+                        let _ = tx.send(AppEvent::OpenHistory);
+                    }
+                })?;
+        }
+        Err(_) => {
+            info!("ClipVault already running - asking it to open, then exiting");
+            let _ = std::net::TcpStream::connect(("127.0.0.1", 48757));
+            return Ok(());
+        }
+    }
 
     // tokio runtime for the async stuff (discord + updater)
     let rt = Arc::new(Runtime::new()?);

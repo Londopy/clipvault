@@ -124,21 +124,12 @@ impl Overlay {
             ctx.request_repaint();
         }
 
-        // themed frame that fills the whole (transparent) viewport, with an
-        // outer gutter so the drop shadow has room to render
+        // simple opaque frame filling the decorated window - content fades in
+        // via set_opacity below
         let visuals = ctx.style().visuals.clone();
-        let mut frame = egui::Frame::none()
+        let frame = egui::Frame::none()
             .fill(visuals.window_fill)
-            .stroke(visuals.window_stroke)
-            .rounding(visuals.window_rounding)
-            .shadow(visuals.window_shadow)
-            .inner_margin(egui::Margin::same(14.0))
-            .outer_margin(egui::Margin::same(16.0));
-        if t < 1.0 {
-            frame.fill = frame.fill.gamma_multiply(t);
-            frame.stroke.color = frame.stroke.color.gamma_multiply(t);
-            frame.shadow.color = frame.shadow.color.gamma_multiply(t);
-        }
+            .inner_margin(egui::Margin::same(14.0));
 
         egui::CentralPanel::default().frame(frame).show(ctx, |ui| {
             ui.set_opacity(t);
@@ -174,8 +165,14 @@ impl Overlay {
                     self.selected_idx = 0;
                 }
             }
-            // settings gear sits on the far right
+            // close + settings sit on the far right
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if pill_tab(ui, false, "✕", palette)
+                    .on_hover_text("Hide (Esc)")
+                    .clicked()
+                {
+                    action = OverlayAction::Close;
+                }
                 let selected = self.tab == Tab::Settings;
                 if pill_tab(ui, selected, "⚙", palette)
                     .on_hover_text("Settings")

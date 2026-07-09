@@ -62,9 +62,10 @@ struct ClipVaultApp {
 
     // For periodic save
     last_save: Instant,
-    // debounce timestamps so focus events don't instantly reopen/reclose
-    last_open: Option<Instant>,
+    // debounce so hiding doesn't instantly reopen from a lingering focus event
     last_close: Option<Instant>,
+    // set when quit was chosen from the tray, so we don't cancel that close
+    quitting: bool,
 }
 
 impl ClipVaultApp {
@@ -97,15 +98,14 @@ impl ClipVaultApp {
             show_overlay: false,
             palette,
             last_save: Instant::now(),
-            last_open: None,
             last_close: None,
+            quitting: false,
         }
     }
 
     fn open_overlay(&mut self, ctx: &Context, tab: Tab) {
         self.overlay.reset_for_open(tab);
         self.show_overlay = true;
-        self.last_open = Some(Instant::now());
         // the viewport starts hidden - actually show and focus the os window
         ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
         ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
@@ -245,6 +245,7 @@ impl ClipVaultApp {
                     Config::open_config_dir();
                 }
                 ID_QUIT => {
+                    self.quitting = true;
                     ctx.send_viewport_cmd(egui::ViewportCommand::Close);
                 }
                 _ => {}
@@ -283,12 +284,22 @@ impl eframe::App for ClipVaultApp {
         self.handle_events(ctx);
         self.handle_tray_events(ctx);
 
+        // the titlebar X hides to the tray instead of quitting the app -
+        // actual quit lives in the tray menu
+        if !self.quitting && ctx.input(|i| i.viewport().close_requested()) {
+            ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
+            self.close_overlay(ctx);
+        }
+
         // housekeeping stuff
         self.update_tray_count();
         self.periodic_save();
 
-        // repaint fast enough that tray clicks and hotkeys feel instant
-        ctx.request_repaint_after(std::time::Duration::from_millis(50));
+        // repaint fast while visible; slow heartbeat when hidden so an idle
+        // tray app doesn't burn cpu (tray clicks and hotkeys are handled on
+        // the next beat, 250ms worst case)
+        let heartbeat = if self.show_overlay { 50 } else { 250 };
+        ctx.request_repaint_after(std::time::Duration::from_millis(heartbeat));
 
         if self.show_overlay {
             let snippets = Arc::clone(&self.snippets);
@@ -323,15 +334,6 @@ impl eframe::App for ClipVaultApp {
                     self.close_overlay(ctx);
                 }
             }
-            // clicking away (window loses focus) closes the overlay, but not
-            // during the first moments after opening while focus is settling
-            let opened_ms = self
-                .last_open
-                .map(|at| at.elapsed().as_millis())
-                .unwrap_or(u128::MAX);
-            if self.show_overlay && opened_ms > 500 && !ctx.input(|i| i.raw.focused) {
-                self.close_overlay(ctx);
-            }
         } else {
             // need an empty panel here or eframe will exit, kinda annoying
             egui::CentralPanel::default()
@@ -349,12 +351,6 @@ impl eframe::App for ClipVaultApp {
                 self.open_overlay(ctx, Tab::History);
             }
         }
-    }
-
-    fn clear_color(&self, _visuals: &egui::Visuals) -> [f32; 4] {
-        // fully transparent so only the rounded overlay window shows,
-        // not a black 480x600 rectangle around it
-        egui::Rgba::TRANSPARENT.to_array()
     }
 
     fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
@@ -393,9 +389,7 @@ pub fn run(
             .with_title("ClipVault")
             .with_inner_size([viewport_w, viewport_h])
             .with_min_inner_size([360.0, 400.0])
-            .with_decorations(false)
-            .with_transparent(true)
-            .with_always_on_top()
+            .with_decorations(true)
             .with_icon(window_icon)
             .with_visible(false), // hidden by default, shows up when you hit the hotkey
         ..Default::default()

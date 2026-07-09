@@ -24,6 +24,7 @@ pub fn run(store: Arc<Mutex<Store>>, config: Arc<Mutex<Config>>) -> Result<()> {
     // track the last thing we saw so we only push when something actually changes
     let mut last_text: Option<String> = None;
     let mut last_image: Option<Vec<u8>> = None;
+    let mut tick: u64 = 0;
 
     loop {
         thread::sleep(Duration::from_millis(POLL_MS));
@@ -72,10 +73,16 @@ pub fn run(store: Arc<Mutex<Store>>, config: Arc<Mutex<Config>>) -> Result<()> {
             }
         }
 
-        // check for new images - convert to a webp thumbnail before storing
+        // check for new images every 10th tick (500ms) - grabbing the
+        // clipboard bitmap copies the whole thing, so doing it every 50ms
+        // burned cpu constantly even when nothing changed
+        tick = tick.wrapping_add(1);
+        if !tick.is_multiple_of(10) {
+            continue;
+        }
         if let Ok(img) = clipboard.get_image() {
-            let raw = img.bytes.to_vec();
-            if Some(&raw) != last_image.as_ref() {
+            if last_image.as_deref() != Some(&*img.bytes) {
+                let raw = img.bytes.to_vec();
                 last_image = Some(raw.clone());
                 let source_app = platform::get_source_app();
                 if source_is_excluded(&source_app, &excluded_apps) {

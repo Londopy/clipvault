@@ -70,31 +70,42 @@ fn show_image_preview(ui: &mut Ui, entry: &ClipEntry, palette: &Palette) {
     );
     ui.add_space(4.0);
 
-    // decode the base64 webp thumbnail we stored earlier and render it
-    use base64::{engine::general_purpose::STANDARD as B64, Engine};
-    if let Ok(bytes) = B64.decode(&entry.data) {
-        if let Ok(img) = image::load_from_memory(&bytes) {
-            let rgba = img.to_rgba8();
-            let (w, h) = rgba.dimensions();
-            let color_image =
-                egui::ColorImage::from_rgba_unmultiplied([w as usize, h as usize], rgba.as_raw());
-            // ideally we'd cache the texture but reloading each frame is fine for a preview pane
-            let texture = ui.ctx().load_texture(
-                format!("thumb_{}", &entry.id[..8]),
-                color_image,
-                egui::TextureOptions::LINEAR,
-            );
-            let max_size = egui::vec2(ui.available_width(), 160.0);
-            let img_size = egui::vec2(w as f32, h as f32);
-            let scale = (max_size.x / img_size.x)
-                .min(max_size.y / img_size.y)
-                .min(1.0);
-            ui.image((texture.id(), img_size * scale));
-        } else {
-            ui.label(RichText::new("⚠ Could not decode image").color(palette.danger));
+    // decode + upload once per entry and cache the texture - doing the
+    // base64 + webp decode and gpu upload every frame burned cpu constantly
+    let tex_id = egui::Id::new(("thumb", &entry.id));
+    let cached: Option<egui::TextureHandle> = ui.ctx().data_mut(|d| d.get_temp(tex_id));
+    let texture = match cached {
+        Some(t) => Some(t),
+        None => {
+            use base64::{engine::general_purpose::STANDARD as B64, Engine};
+            B64.decode(&entry.data)
+                .ok()
+                .and_then(|bytes| image::load_from_memory(&bytes).ok())
+                .map(|img| {
+                    let rgba = img.to_rgba8();
+                    let (w, h) = rgba.dimensions();
+                    let color_image = egui::ColorImage::from_rgba_unmultiplied(
+                        [w as usize, h as usize],
+                        rgba.as_raw(),
+                    );
+                    let t = ui.ctx().load_texture(
+                        format!("thumb_{}", &entry.id[..8]),
+                        color_image,
+                        egui::TextureOptions::LINEAR,
+                    );
+                    ui.ctx().data_mut(|d| d.insert_temp(tex_id, t.clone()));
+                    t
+                })
         }
+    };
+
+    if let Some(texture) = texture {
+        let size = texture.size_vec2();
+        let max_size = egui::vec2(ui.available_width(), 160.0);
+        let scale = (max_size.x / size.x).min(max_size.y / size.y).min(1.0);
+        ui.image((texture.id(), size * scale));
     } else {
-        ui.label(RichText::new("⚠ Invalid base64 thumbnail").color(palette.danger));
+        ui.label(RichText::new("⚠ Could not decode image").color(palette.danger));
     }
 }
 
