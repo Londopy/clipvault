@@ -46,21 +46,17 @@ pub fn run(store: Arc<Mutex<Store>>, config: Arc<Mutex<Config>>) -> Result<()> {
             continue;
         }
 
-        // figure out what app the user just copied from
-        let source_app = platform::get_source_app();
-
-        // skip if this app is in the exclusion list (password managers etc)
-        if let Some(ref app) = source_app {
-            if excluded_apps.iter().any(|ex| app.contains(ex.as_str())) {
-                debug!("skipping clipboard from excluded app: {app}");
-                continue;
-            }
-        }
-
         // check for new text
         if let Ok(text) = clipboard.get_text() {
             if !text.is_empty() && Some(&text) != last_text.as_ref() {
                 last_text = Some(text.clone());
+                // only resolve the source app when something actually changed -
+                // on macos/linux this spawns a process, so doing it every 50ms
+                // tick would peg a core (SHIPPING.md cross-cutting issue #1)
+                let source_app = platform::get_source_app();
+                if source_is_excluded(&source_app, &excluded_apps) {
+                    continue;
+                }
                 let text = if mask_passwords && looks_like_password(&text) {
                     "[masked]".to_string()
                 } else {
@@ -81,6 +77,10 @@ pub fn run(store: Arc<Mutex<Store>>, config: Arc<Mutex<Config>>) -> Result<()> {
             let raw = img.bytes.to_vec();
             if Some(&raw) != last_image.as_ref() {
                 last_image = Some(raw.clone());
+                let source_app = platform::get_source_app();
+                if source_is_excluded(&source_app, &excluded_apps) {
+                    continue;
+                }
                 match make_thumbnail(&raw, img.width as u32, img.height as u32) {
                     Ok(thumb_b64) => {
                         let entry = ClipEntry::new_image(thumb_b64, None, source_app.clone());
@@ -96,6 +96,17 @@ pub fn run(store: Arc<Mutex<Store>>, config: Arc<Mutex<Config>>) -> Result<()> {
             }
         }
     }
+}
+
+// true if the app the user copied from is on the exclusion list
+fn source_is_excluded(source_app: &Option<String>, excluded: &[String]) -> bool {
+    if let Some(app) = source_app {
+        if excluded.iter().any(|ex| app.contains(ex.as_str())) {
+            debug!("skipping clipboard from excluded app: {app}");
+            return true;
+        }
+    }
+    false
 }
 
 // shrinks the image down to at most 200x200 and encodes it as base64 webp

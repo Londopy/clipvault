@@ -11,6 +11,19 @@ use arboard::Clipboard;
 use enigo::{Direction, Enigo, Key, Keyboard, Settings};
 use log::debug;
 
+// paste on a background thread after a short delay. use this from the gui:
+// it gives the overlay window time to hide and focus to return to the target
+// app, and gives the user time to release hotkey modifiers - sending ctrl+v
+// while alt/shift are still held would deliver the wrong combo entirely.
+pub fn paste_text_deferred(text: String) {
+    thread::spawn(move || {
+        thread::sleep(Duration::from_millis(150));
+        if let Err(e) = paste_text(&text) {
+            log::warn!("deferred paste failed: {e}");
+        }
+    });
+}
+
 pub fn paste_text(text: &str) -> Result<()> {
     {
         let mut clipboard = Clipboard::new()?;
@@ -27,6 +40,12 @@ pub fn paste_text(text: &str) -> Result<()> {
 pub fn simulate_paste() -> Result<()> {
     let mut enigo =
         Enigo::new(&Settings::default()).map_err(|e| anyhow::anyhow!("enigo init: {e:?}"))?;
+
+    // release modifiers the user may still be holding from the hotkey -
+    // a held alt or shift would turn our ctrl+v into a different combo
+    for m in [Key::Alt, Key::Shift] {
+        let _ = enigo.key(m, Direction::Release);
+    }
 
     #[cfg(target_os = "macos")]
     {

@@ -78,6 +78,13 @@ impl Default for Overlay {
     }
 }
 
+// layout options for the entry list, computed per frame from available space
+struct ListOpts {
+    show_ts: bool,
+    show_app: bool,
+    height: f32,
+}
+
 // what the overlay wants to do after this frame
 pub enum OverlayAction {
     None,
@@ -117,23 +124,26 @@ impl Overlay {
             ctx.request_repaint();
         }
 
-        let mut frame = egui::Frame::window(&ctx.style());
+        // themed frame that fills the whole (transparent) viewport, with an
+        // outer gutter so the drop shadow has room to render
+        let visuals = ctx.style().visuals.clone();
+        let mut frame = egui::Frame::none()
+            .fill(visuals.window_fill)
+            .stroke(visuals.window_stroke)
+            .rounding(visuals.window_rounding)
+            .shadow(visuals.window_shadow)
+            .inner_margin(egui::Margin::same(14.0))
+            .outer_margin(egui::Margin::same(16.0));
         if t < 1.0 {
             frame.fill = frame.fill.gamma_multiply(t);
             frame.stroke.color = frame.stroke.color.gamma_multiply(t);
             frame.shadow.color = frame.shadow.color.gamma_multiply(t);
         }
 
-        // Main overlay window
-        egui::Window::new("ClipVault")
-            .resizable(false)
-            .collapsible(false)
-            .title_bar(false)
-            .frame(frame)
-            .show(ctx, |ui| {
-                ui.set_opacity(t);
-                action = self.draw_content(ui, store, snippets, config, palette);
-            });
+        egui::CentralPanel::default().frame(frame).show(ctx, |ui| {
+            ui.set_opacity(t);
+            action = self.draw_content(ui, store, snippets, config, palette);
+        });
 
         action
     }
@@ -224,6 +234,19 @@ impl Overlay {
             )
         };
 
+        // the list gets whatever height remains after preview + footer, so the
+        // overlay never overflows the fixed-size viewport
+        let reserve = match self.tab {
+            Tab::History | Tab::Pinned => 260.0, // preview card + footer
+            _ => 50.0,                           // footer only
+        };
+        let list_height = (ui.available_height() - reserve).max(140.0);
+        let opts = ListOpts {
+            show_ts,
+            show_app,
+            height: list_height,
+        };
+
         // render whichever tab is active
         let list_action = match self.tab {
             Tab::History => {
@@ -231,16 +254,16 @@ impl Overlay {
                     let s = store.lock().unwrap();
                     s.history.iter().filter(|e| !e.is_pinned).cloned().collect()
                 };
-                self.draw_entry_list(ui, &entries, palette, max_items, show_ts, show_app)
+                self.draw_entry_list(ui, &entries, palette, max_items, &opts)
             }
             Tab::Pinned => {
                 let entries: Vec<ClipEntry> = {
                     let s = store.lock().unwrap();
                     s.history.iter().filter(|e| e.is_pinned).cloned().collect()
                 };
-                self.draw_entry_list(ui, &entries, palette, max_items, show_ts, show_app)
+                self.draw_entry_list(ui, &entries, palette, max_items, &opts)
             }
-            Tab::Snippets => self.draw_snippets_list(ui, snippets, palette, max_items),
+            Tab::Snippets => self.draw_snippets_list(ui, snippets, palette, max_items, list_height),
             Tab::Settings => self.draw_settings(ui, config, store, palette),
         };
 
@@ -322,14 +345,13 @@ impl Overlay {
         entries: &[ClipEntry],
         palette: &Palette,
         max_items: usize,
-        show_ts: bool,
-        show_app: bool,
+        opts: &ListOpts,
     ) -> OverlayAction {
         let mut action = OverlayAction::None;
         let filtered = self.filtered_entries(entries);
 
         ScrollArea::vertical()
-            .max_height(max_items as f32 * 44.0)
+            .max_height(opts.height)
             .show(ui, |ui| {
                 if filtered.is_empty() {
                     empty_state(ui, &self.search_query, palette);
@@ -364,7 +386,11 @@ impl Overlay {
                                     ui.label(RichText::new("📌").small());
                                 }
                                 // Preview text, truncated so metadata always fits
-                                let reserve = if show_ts || show_app { 110.0 } else { 8.0 };
+                                let reserve = if opts.show_ts || opts.show_app {
+                                    110.0
+                                } else {
+                                    8.0
+                                };
                                 ui.scope(|ui| {
                                     ui.set_max_width((ui.available_width() - reserve).max(40.0));
                                     ui.add(
@@ -379,7 +405,7 @@ impl Overlay {
                                 ui.with_layout(
                                     egui::Layout::right_to_left(egui::Align::Center),
                                     |ui| {
-                                        if show_ts {
+                                        if opts.show_ts {
                                             let ts = entry.timestamp.format("%H:%M").to_string();
                                             ui.label(
                                                 RichText::new(ts)
@@ -388,7 +414,7 @@ impl Overlay {
                                                     .small(),
                                             );
                                         }
-                                        if show_app {
+                                        if opts.show_app {
                                             if let Some(ref app) = entry.source_app {
                                                 ui.label(
                                                     RichText::new(app.as_str())
@@ -470,6 +496,7 @@ impl Overlay {
         snippets: &Arc<Mutex<SnippetStore>>,
         palette: &Palette,
         max_items: usize,
+        height: f32,
     ) -> OverlayAction {
         let mut action = OverlayAction::None;
         let sn = snippets.lock().unwrap();
@@ -486,86 +513,84 @@ impl Overlay {
             })
             .collect();
 
-        ScrollArea::vertical()
-            .max_height(max_items as f32 * 44.0)
-            .show(ui, |ui| {
-                if filtered.is_empty() {
-                    empty_state(ui, &self.search_query, palette);
-                }
-                for (idx, sn) in filtered.iter().enumerate().take(max_items) {
-                    let selected = idx == self.selected_idx;
-                    let t = ui
-                        .ctx()
-                        .animate_bool(Id::new(("snip_sel", &sn.name, idx)), selected);
-                    let bg_color = lerp_color(palette.bg_secondary, palette.bg_highlight, t);
+        ScrollArea::vertical().max_height(height).show(ui, |ui| {
+            if filtered.is_empty() {
+                empty_state(ui, &self.search_query, palette);
+            }
+            for (idx, sn) in filtered.iter().enumerate().take(max_items) {
+                let selected = idx == self.selected_idx;
+                let t = ui
+                    .ctx()
+                    .animate_bool(Id::new(("snip_sel", &sn.name, idx)), selected);
+                let bg_color = lerp_color(palette.bg_secondary, palette.bg_highlight, t);
 
-                    let item_resp = egui::Frame::none()
-                        .fill(bg_color)
-                        .rounding(Rounding::same(8.0))
-                        .inner_margin(egui::Margin::symmetric(10.0, 6.0))
-                        .show(ui, |ui| {
-                            ui.set_width(ui.available_width());
-                            ui.horizontal(|ui| {
-                                ui.label(RichText::new(&sn.name).color(palette.text));
-                                if let Some(ref sc) = sn.shortcode {
-                                    ui.label(
-                                        RichText::new(format!(";;{sc}"))
-                                            .monospace()
-                                            .color(palette.accent)
-                                            .small(),
-                                    );
-                                }
-                                if let Some(ref cat) = sn.category {
-                                    ui.with_layout(
-                                        egui::Layout::right_to_left(egui::Align::Center),
-                                        |ui| {
-                                            ui.label(
-                                                RichText::new(cat.as_str())
-                                                    .color(palette.text_dim)
-                                                    .small(),
-                                            );
-                                        },
-                                    );
-                                }
-                            });
+                let item_resp = egui::Frame::none()
+                    .fill(bg_color)
+                    .rounding(Rounding::same(8.0))
+                    .inner_margin(egui::Margin::symmetric(10.0, 6.0))
+                    .show(ui, |ui| {
+                        ui.set_width(ui.available_width());
+                        ui.horizontal(|ui| {
+                            ui.label(RichText::new(&sn.name).color(palette.text));
+                            if let Some(ref sc) = sn.shortcode {
+                                ui.label(
+                                    RichText::new(format!(";;{sc}"))
+                                        .monospace()
+                                        .color(palette.accent)
+                                        .small(),
+                                );
+                            }
+                            if let Some(ref cat) = sn.category {
+                                ui.with_layout(
+                                    egui::Layout::right_to_left(egui::Align::Center),
+                                    |ui| {
+                                        ui.label(
+                                            RichText::new(cat.as_str())
+                                                .color(palette.text_dim)
+                                                .small(),
+                                        );
+                                    },
+                                );
+                            }
                         });
+                    });
 
-                    let rect = item_resp.response.rect;
-                    let response =
-                        ui.interact(rect, Id::new(("snip_i", &sn.name, idx)), Sense::click());
+                let rect = item_resp.response.rect;
+                let response =
+                    ui.interact(rect, Id::new(("snip_i", &sn.name, idx)), Sense::click());
 
-                    if t > 0.01 {
-                        let bar = egui::Rect::from_min_size(
-                            rect.left_top() + egui::vec2(0.0, 5.0),
-                            egui::vec2(3.0, (rect.height() - 10.0).max(0.0)),
-                        );
-                        ui.painter().rect_filled(
-                            bar,
-                            Rounding::same(2.0),
-                            palette.accent.gamma_multiply(t),
-                        );
-                    }
-                    if response.hovered() && !selected {
-                        ui.painter().rect_stroke(
-                            rect,
-                            Rounding::same(8.0),
-                            Stroke::new(1.0, palette.accent.linear_multiply(0.35)),
-                        );
-                    }
-                    if selected && self.scroll_to_selected {
-                        response.scroll_to_me(Some(Align::Center));
-                    }
-
-                    if response.clicked() {
-                        self.selected_idx = idx;
-                    }
-                    if response.double_clicked() {
-                        action = OverlayAction::PasteEntry(sn.expanded_content());
-                    }
-                    ui.add_space(3.0);
+                if t > 0.01 {
+                    let bar = egui::Rect::from_min_size(
+                        rect.left_top() + egui::vec2(0.0, 5.0),
+                        egui::vec2(3.0, (rect.height() - 10.0).max(0.0)),
+                    );
+                    ui.painter().rect_filled(
+                        bar,
+                        Rounding::same(2.0),
+                        palette.accent.gamma_multiply(t),
+                    );
                 }
-                self.scroll_to_selected = false;
-            });
+                if response.hovered() && !selected {
+                    ui.painter().rect_stroke(
+                        rect,
+                        Rounding::same(8.0),
+                        Stroke::new(1.0, palette.accent.linear_multiply(0.35)),
+                    );
+                }
+                if selected && self.scroll_to_selected {
+                    response.scroll_to_me(Some(Align::Center));
+                }
+
+                if response.clicked() {
+                    self.selected_idx = idx;
+                }
+                if response.double_clicked() {
+                    action = OverlayAction::PasteEntry(sn.expanded_content());
+                }
+                ui.add_space(3.0);
+            }
+            self.scroll_to_selected = false;
+        });
 
         action
     }
@@ -579,203 +604,209 @@ impl Overlay {
     ) -> OverlayAction {
         let mut changed = false;
 
-        ScrollArea::vertical().max_height(420.0).show(ui, |ui| {
-            ui.add_space(6.0);
+        let settings_height = (ui.available_height() - 50.0).max(200.0);
+        ScrollArea::vertical()
+            .max_height(settings_height)
+            .show(ui, |ui| {
+                ui.add_space(6.0);
 
-            // ── General ──────────────────────────────────────────────────────
-            ui.label(RichText::new("General").color(palette.accent).strong());
-            ui.separator();
-            ui.add_space(4.0);
+                // ── General ──────────────────────────────────────────────────────
+                ui.label(RichText::new("General").color(palette.accent).strong());
+                ui.separator();
+                ui.add_space(4.0);
 
-            {
-                let mut cfg = config.lock().unwrap();
+                {
+                    let mut cfg = config.lock().unwrap();
 
-                // startup toggle - the main one the user asked for
-                let prev_auto_start = cfg.general.auto_start;
-                ui.horizontal(|ui| {
-                    ui.checkbox(&mut cfg.general.auto_start, "");
-                    ui.label(RichText::new("Start with system").color(palette.text));
-                });
-                ui.label(
-                    RichText::new("Launch ClipVault automatically when you log in.")
-                        .color(palette.text_dim)
-                        .small(),
-                );
-                if cfg.general.auto_start != prev_auto_start {
-                    // actually register/unregister with the OS right now
-                    if cfg.general.auto_start {
-                        crate::platform::register_startup();
-                    } else {
-                        crate::platform::unregister_startup();
+                    // startup toggle - the main one the user asked for
+                    let prev_auto_start = cfg.general.auto_start;
+                    ui.horizontal(|ui| {
+                        ui.checkbox(&mut cfg.general.auto_start, "");
+                        ui.label(RichText::new("Start with system").color(palette.text));
+                    });
+                    ui.label(
+                        RichText::new("Launch ClipVault automatically when you log in.")
+                            .color(palette.text_dim)
+                            .small(),
+                    );
+                    if cfg.general.auto_start != prev_auto_start {
+                        // actually register/unregister with the OS right now
+                        if cfg.general.auto_start {
+                            crate::platform::register_startup();
+                        } else {
+                            crate::platform::unregister_startup();
+                        }
+                        changed = true;
                     }
-                    changed = true;
+
+                    ui.add_space(8.0);
+
+                    let prev = cfg.general.persist_history;
+                    ui.horizontal(|ui| {
+                        ui.checkbox(&mut cfg.general.persist_history, "");
+                        ui.label(
+                            RichText::new("Save history between sessions").color(palette.text),
+                        );
+                    });
+                    if cfg.general.persist_history != prev {
+                        changed = true;
+                    }
+
+                    ui.add_space(4.0);
+
+                    let prev = cfg.general.deduplicate;
+                    ui.horizontal(|ui| {
+                        ui.checkbox(&mut cfg.general.deduplicate, "");
+                        ui.label(RichText::new("Skip duplicate entries").color(palette.text));
+                    });
+                    if cfg.general.deduplicate != prev {
+                        changed = true;
+                    }
+
+                    ui.add_space(4.0);
+
+                    ui.horizontal(|ui| {
+                        ui.label(RichText::new("History limit:").color(palette.text));
+                        ui.add(
+                            egui::DragValue::new(&mut cfg.general.history_limit)
+                                .range(10..=10_000usize)
+                                .speed(1.0),
+                        );
+                    });
+                    ui.label(
+                        RichText::new("Max number of items to keep.")
+                            .color(palette.text_dim)
+                            .small(),
+                    );
+                }
+
+                ui.add_space(12.0);
+
+                // ── Display ───────────────────────────────────────────────────────
+                ui.label(RichText::new("Display").color(palette.accent).strong());
+                ui.separator();
+                ui.add_space(4.0);
+
+                {
+                    let mut cfg = config.lock().unwrap();
+
+                    let prev = cfg.gui.show_timestamps;
+                    ui.horizontal(|ui| {
+                        ui.checkbox(&mut cfg.gui.show_timestamps, "");
+                        ui.label(RichText::new("Show timestamps").color(palette.text));
+                    });
+                    if cfg.gui.show_timestamps != prev {
+                        changed = true;
+                    }
+
+                    ui.add_space(4.0);
+
+                    let prev = cfg.gui.show_source_app;
+                    ui.horizontal(|ui| {
+                        ui.checkbox(&mut cfg.gui.show_source_app, "");
+                        ui.label(RichText::new("Show source app").color(palette.text));
+                    });
+                    if cfg.gui.show_source_app != prev {
+                        changed = true;
+                    }
+
+                    ui.add_space(4.0);
+
+                    ui.horizontal(|ui| {
+                        ui.label(RichText::new("Theme:").color(palette.text));
+                        egui::ComboBox::from_id_source("theme_combo")
+                            .selected_text(cfg.gui.theme.clone())
+                            .show_ui(ui, |ui| {
+                                for t in ["dark", "light", "system"] {
+                                    if ui.selectable_label(cfg.gui.theme == t, t).clicked() {
+                                        cfg.gui.theme = t.to_string();
+                                        changed = true;
+                                    }
+                                }
+                            });
+                    });
+
+                    ui.add_space(4.0);
+
+                    ui.horizontal(|ui| {
+                        ui.label(RichText::new("Overlay position:").color(palette.text));
+                        egui::ComboBox::from_id_source("pos_combo")
+                            .selected_text(cfg.gui.position.clone())
+                            .show_ui(ui, |ui| {
+                                for p in ["cursor", "center", "top-right", "top-left"] {
+                                    if ui.selectable_label(cfg.gui.position == p, p).clicked() {
+                                        cfg.gui.position = p.to_string();
+                                        changed = true;
+                                    }
+                                }
+                            });
+                    });
+                }
+
+                ui.add_space(12.0);
+
+                // ── Privacy ───────────────────────────────────────────────────────
+                ui.label(RichText::new("Privacy").color(palette.accent).strong());
+                ui.separator();
+                ui.add_space(4.0);
+
+                {
+                    let mut cfg = config.lock().unwrap();
+
+                    let prev = cfg.security.mask_passwords;
+                    ui.horizontal(|ui| {
+                        ui.checkbox(&mut cfg.security.mask_passwords, "");
+                        ui.label(RichText::new("Mask passwords").color(palette.text));
+                    });
+                    ui.label(
+                        RichText::new("Hides entries that look like passwords.")
+                            .color(palette.text_dim)
+                            .small(),
+                    );
+                    if cfg.security.mask_passwords != prev {
+                        changed = true;
+                    }
+
+                    ui.add_space(4.0);
+
+                    let prev = cfg.security.encrypt_history;
+                    ui.horizontal(|ui| {
+                        ui.checkbox(&mut cfg.security.encrypt_history, "");
+                        ui.label(RichText::new("Encrypt history file").color(palette.text));
+                    });
+                    ui.label(
+                        RichText::new("AES-256-GCM. Takes effect on next save.")
+                            .color(palette.text_dim)
+                            .small(),
+                    );
+                    if cfg.security.encrypt_history != prev {
+                        changed = true;
+                    }
                 }
 
                 ui.add_space(8.0);
 
-                let prev = cfg.general.persist_history;
-                ui.horizontal(|ui| {
-                    ui.checkbox(&mut cfg.general.persist_history, "");
-                    ui.label(RichText::new("Save history between sessions").color(palette.text));
-                });
-                if cfg.general.persist_history != prev {
-                    changed = true;
+                // danger zone: clear history button
+                let btn = egui::Button::new(
+                    RichText::new("Clear All History").color(egui::Color32::WHITE),
+                )
+                .fill(palette.danger);
+                if ui.add(btn).clicked() {
+                    store.lock().unwrap().clear(false);
                 }
-
-                ui.add_space(4.0);
-
-                let prev = cfg.general.deduplicate;
-                ui.horizontal(|ui| {
-                    ui.checkbox(&mut cfg.general.deduplicate, "");
-                    ui.label(RichText::new("Skip duplicate entries").color(palette.text));
-                });
-                if cfg.general.deduplicate != prev {
-                    changed = true;
-                }
-
-                ui.add_space(4.0);
-
-                ui.horizontal(|ui| {
-                    ui.label(RichText::new("History limit:").color(palette.text));
-                    ui.add(
-                        egui::DragValue::new(&mut cfg.general.history_limit)
-                            .range(10..=10_000usize)
-                            .speed(1.0),
-                    );
-                });
                 ui.label(
-                    RichText::new("Max number of items to keep.")
+                    RichText::new("Removes everything including pinned items.")
                         .color(palette.text_dim)
                         .small(),
                 );
-            }
 
-            ui.add_space(12.0);
+                ui.add_space(8.0);
 
-            // ── Display ───────────────────────────────────────────────────────
-            ui.label(RichText::new("Display").color(palette.accent).strong());
-            ui.separator();
-            ui.add_space(4.0);
-
-            {
-                let mut cfg = config.lock().unwrap();
-
-                let prev = cfg.gui.show_timestamps;
-                ui.horizontal(|ui| {
-                    ui.checkbox(&mut cfg.gui.show_timestamps, "");
-                    ui.label(RichText::new("Show timestamps").color(palette.text));
-                });
-                if cfg.gui.show_timestamps != prev {
-                    changed = true;
+                // save config if anything changed
+                if changed {
+                    let _ = config.lock().unwrap().save();
                 }
-
-                ui.add_space(4.0);
-
-                let prev = cfg.gui.show_source_app;
-                ui.horizontal(|ui| {
-                    ui.checkbox(&mut cfg.gui.show_source_app, "");
-                    ui.label(RichText::new("Show source app").color(palette.text));
-                });
-                if cfg.gui.show_source_app != prev {
-                    changed = true;
-                }
-
-                ui.add_space(4.0);
-
-                ui.horizontal(|ui| {
-                    ui.label(RichText::new("Theme:").color(palette.text));
-                    egui::ComboBox::from_id_source("theme_combo")
-                        .selected_text(cfg.gui.theme.clone())
-                        .show_ui(ui, |ui| {
-                            for t in ["dark", "light", "system"] {
-                                if ui.selectable_label(cfg.gui.theme == t, t).clicked() {
-                                    cfg.gui.theme = t.to_string();
-                                    changed = true;
-                                }
-                            }
-                        });
-                });
-
-                ui.add_space(4.0);
-
-                ui.horizontal(|ui| {
-                    ui.label(RichText::new("Overlay position:").color(palette.text));
-                    egui::ComboBox::from_id_source("pos_combo")
-                        .selected_text(cfg.gui.position.clone())
-                        .show_ui(ui, |ui| {
-                            for p in ["cursor", "center", "top-right", "top-left"] {
-                                if ui.selectable_label(cfg.gui.position == p, p).clicked() {
-                                    cfg.gui.position = p.to_string();
-                                    changed = true;
-                                }
-                            }
-                        });
-                });
-            }
-
-            ui.add_space(12.0);
-
-            // ── Privacy ───────────────────────────────────────────────────────
-            ui.label(RichText::new("Privacy").color(palette.accent).strong());
-            ui.separator();
-            ui.add_space(4.0);
-
-            {
-                let mut cfg = config.lock().unwrap();
-
-                let prev = cfg.security.mask_passwords;
-                ui.horizontal(|ui| {
-                    ui.checkbox(&mut cfg.security.mask_passwords, "");
-                    ui.label(RichText::new("Mask passwords").color(palette.text));
-                });
-                ui.label(
-                    RichText::new("Hides entries that look like passwords.")
-                        .color(palette.text_dim)
-                        .small(),
-                );
-                if cfg.security.mask_passwords != prev {
-                    changed = true;
-                }
-
-                ui.add_space(4.0);
-
-                let prev = cfg.security.encrypt_history;
-                ui.horizontal(|ui| {
-                    ui.checkbox(&mut cfg.security.encrypt_history, "");
-                    ui.label(RichText::new("Encrypt history file").color(palette.text));
-                });
-                ui.label(
-                    RichText::new("AES-256-GCM. Takes effect on next save.")
-                        .color(palette.text_dim)
-                        .small(),
-                );
-                if cfg.security.encrypt_history != prev {
-                    changed = true;
-                }
-            }
-
-            ui.add_space(8.0);
-
-            // danger zone: clear history button
-            let btn =
-                egui::Button::new(RichText::new("Clear All History").color(egui::Color32::WHITE))
-                    .fill(palette.danger);
-            if ui.add(btn).clicked() {
-                store.lock().unwrap().clear(false);
-            }
-            ui.label(
-                RichText::new("Removes everything including pinned items.")
-                    .color(palette.text_dim)
-                    .small(),
-            );
-
-            ui.add_space(8.0);
-
-            // save config if anything changed
-            if changed {
-                let _ = config.lock().unwrap().save();
-            }
-        });
+            });
 
         if changed {
             OverlayAction::SettingsChanged

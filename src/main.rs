@@ -2,6 +2,11 @@
 // entry point. spins up all the background threads then gives the main
 // thread to egui (it needs the main thread on windows/mac, annoying but whatever)
 
+// hide the console window on windows release builds (debug keeps it for logs)
+#![cfg_attr(
+    all(not(debug_assertions), target_os = "windows"),
+    windows_subsystem = "windows"
+)]
 // much of the snippet/transform/store API is scaffolded ahead of being wired up
 #![allow(dead_code)]
 
@@ -34,6 +39,16 @@ fn main() -> Result<()> {
     // set up logging so i can actually see whats happening
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     info!("ClipVault {} starting", env!("CLIPVAULT_VERSION"));
+
+    // single-instance guard: a second copy would run its own clipboard
+    // daemon and hotkey listener and fight the first one. binding a
+    // localhost port is a portable, dependency-free mutex; the listener
+    // lives for the life of the process.
+    let instance_lock = std::net::TcpListener::bind(("127.0.0.1", 48757));
+    if instance_lock.is_err() {
+        log::warn!("ClipVault is already running - exiting this copy");
+        return Ok(());
+    }
 
     // load config from disk (or write defaults if it doesnt exist yet)
     let config = Arc::new(Mutex::new(Config::load()?));

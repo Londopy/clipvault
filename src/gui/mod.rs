@@ -28,6 +28,10 @@ use crate::tray::{
 };
 
 use self::overlay::{Overlay, OverlayAction, Tab};
+
+// fixed size of the overlay viewport, shared by setup and positioning
+pub const OVERLAY_W: f32 = 480.0;
+pub const OVERLAY_H: f32 = 620.0;
 use self::theme::{apply_style, build_visuals, parse_hex_color, Palette};
 
 // all the things that can happen - hotkeys and tray clicks both send these
@@ -105,6 +109,15 @@ impl ClipVaultApp {
         // the viewport starts hidden - actually show and focus the os window
         ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
         ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
+        // center on the monitor - the os would otherwise leave it top-left
+        if let Some(monitor) = ctx.input(|i| i.viewport().monitor_size) {
+            let size = egui::vec2(OVERLAY_W, OVERLAY_H);
+            let pos = egui::pos2(
+                ((monitor.x - size.x) * 0.5).max(0.0),
+                ((monitor.y - size.y) * 0.4).max(0.0),
+            );
+            ctx.send_viewport_cmd(egui::ViewportCommand::OuterPosition(pos));
+        }
     }
 
     fn close_overlay(&mut self, ctx: &Context) {
@@ -140,7 +153,7 @@ impl ClipVaultApp {
                         .front()
                         .map(|e| e.data.clone());
                     if let Some(text) = data {
-                        let _ = paste::paste_text(&text);
+                        paste::paste_text_deferred(text);
                     }
                 }
                 AppEvent::ToggleIncognito => {
@@ -170,7 +183,7 @@ impl ClipVaultApp {
                             .map(|e| e.data.clone())
                     };
                     if let Some(text) = data {
-                        let _ = paste::paste_text(&text);
+                        paste::paste_text_deferred(text);
                     }
                 }
                 AppEvent::UpdateAvailable(version) => {
@@ -294,7 +307,10 @@ impl eframe::App for ClipVaultApp {
                     let notify = cfg.notifications.enabled && cfg.notifications.on_paste;
                     drop(cfg);
                     self.close_overlay(ctx);
-                    let _ = paste::paste_text(&data);
+                    // deferred: the hide command is only applied at end of
+                    // frame, and pasting synchronously would send ctrl+v while
+                    // our own window still has focus
+                    paste::paste_text_deferred(data);
                     if notify {
                         let cfg = self.config.lock().unwrap();
                         let _ = notify::send_notification("ClipVault", "Pasted from history", &cfg);
@@ -367,7 +383,7 @@ pub fn run(
         }
     }
 
-    let (viewport_w, viewport_h) = (480.0, 600.0);
+    let (viewport_w, viewport_h) = (OVERLAY_W, OVERLAY_H);
 
     // load the icon for the window (egui uses it as the taskbar/alt-tab icon)
     let window_icon = load_window_icon();
@@ -402,22 +418,16 @@ pub fn run(
 // loads the best available icon from assets/ for the window titlebar/taskbar
 // tries 64px first (looks nicest), then 32px, then the big one
 fn load_window_icon() -> egui::IconData {
-    for path in &[
-        "assets/icon_64.png",
-        "assets/icon_32.png",
-        "assets/icon.png",
-    ] {
-        if let Ok(bytes) = std::fs::read(path) {
-            if let Ok(img) = image::load_from_memory(&bytes) {
-                let rgba = img.to_rgba8();
-                let (w, h) = rgba.dimensions();
-                return egui::IconData {
-                    rgba: rgba.into_raw(),
-                    width: w,
-                    height: h,
-                };
-            }
-        }
+    // compiled into the binary so it works regardless of working directory
+    const ICON: &[u8] = include_bytes!("../../assets/icon_64.png");
+    if let Ok(img) = image::load_from_memory(ICON) {
+        let rgba = img.to_rgba8();
+        let (w, h) = rgba.dimensions();
+        return egui::IconData {
+            rgba: rgba.into_raw(),
+            width: w,
+            height: h,
+        };
     }
     // fallback solid blue square if assets folder is missing
     let rgba: Vec<u8> = [0x4f, 0x8e, 0xf7, 0xff].repeat(32 * 32);

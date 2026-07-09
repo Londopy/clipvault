@@ -61,14 +61,34 @@ fn get_startup_path() -> Option<String> {
         .and_then(|p| p.to_str().map(|s| format!("\"{}\"", s)))
 }
 
-// TODO: add winreg = "0.52" to Cargo.toml and implement these properly
-// for now they're stubs so it at least compiles
+// writes the Run key via reg.exe so we don't need a registry crate.
+// CREATE_NO_WINDOW keeps the helper from flashing a console window.
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
 fn write_registry_run(name: &str, value: &str) -> anyhow::Result<()> {
-    let _ = (name, value);
-    Ok(())
+    use std::os::windows::process::CommandExt;
+    let key = format!(r"HKCU\{RUN_KEY}");
+    let status = std::process::Command::new("reg")
+        .args(["add", &key, "/v", name, "/t", "REG_SZ", "/d", value, "/f"])
+        .creation_flags(CREATE_NO_WINDOW)
+        .status()?;
+    if status.success() {
+        Ok(())
+    } else {
+        anyhow::bail!("reg add exited with {status}")
+    }
 }
 
 fn delete_registry_run(name: &str) -> anyhow::Result<()> {
-    let _ = name;
-    Ok(())
+    use std::os::windows::process::CommandExt;
+    let key = format!(r"HKCU\{RUN_KEY}");
+    let status = std::process::Command::new("reg")
+        .args(["delete", &key, "/v", name, "/f"])
+        .creation_flags(CREATE_NO_WINDOW)
+        .status()?;
+    if status.success() {
+        Ok(())
+    } else {
+        anyhow::bail!("reg delete exited with {status}")
+    }
 }
