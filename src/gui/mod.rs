@@ -58,6 +58,9 @@ struct ClipVaultApp {
 
     // For periodic save
     last_save: Instant,
+    // debounce timestamps so focus events don't instantly reopen/reclose
+    last_open: Option<Instant>,
+    last_close: Option<Instant>,
 }
 
 impl ClipVaultApp {
@@ -90,28 +93,37 @@ impl ClipVaultApp {
             show_overlay: false,
             palette,
             last_save: Instant::now(),
+            last_open: None,
+            last_close: None,
         }
     }
 
-    fn open_overlay(&mut self, tab: Tab) {
+    fn open_overlay(&mut self, ctx: &Context, tab: Tab) {
         self.overlay.reset_for_open(tab);
         self.show_overlay = true;
+        self.last_open = Some(Instant::now());
+        // the viewport starts hidden - actually show and focus the os window
+        ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
+        ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
     }
 
-    fn close_overlay(&mut self) {
+    fn close_overlay(&mut self, ctx: &Context) {
         self.show_overlay = false;
+        self.last_close = Some(Instant::now());
+        // hide the os window again instead of leaving an empty shell around
+        ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
     }
 
-    fn handle_events(&mut self) {
+    fn handle_events(&mut self, ctx: &Context) {
         while let Ok(event) = self.event_rx.try_recv() {
             match event {
                 AppEvent::OpenHistory => {
                     debug!("Event: OpenHistory");
-                    self.open_overlay(Tab::History);
+                    self.open_overlay(ctx, Tab::History);
                 }
                 AppEvent::OpenSnippets => {
                     debug!("Event: OpenSnippets");
-                    self.open_overlay(Tab::Snippets);
+                    self.open_overlay(ctx, Tab::Snippets);
                 }
                 AppEvent::ClearClipboard => {
                     debug!("Event: ClearClipboard");
@@ -174,7 +186,7 @@ impl ClipVaultApp {
                 }
                 AppEvent::OpenSettings => {
                     debug!("Event: OpenSettings");
-                    self.open_overlay(Tab::Settings);
+                    self.open_overlay(ctx, Tab::Settings);
                 }
             }
         }
@@ -183,7 +195,7 @@ impl ClipVaultApp {
     fn handle_tray_events(&mut self, ctx: &Context) {
         if let Some(id) = tray::poll_menu_event() {
             match id.as_str() {
-                ID_OPEN => self.open_overlay(Tab::History),
+                ID_OPEN => self.open_overlay(ctx, Tab::History),
                 ID_PASTE_LAST => {
                     let _ = self.event_tx.send(AppEvent::PasteLast);
                 }
@@ -255,7 +267,7 @@ impl ClipVaultApp {
 impl eframe::App for ClipVaultApp {
     fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
         // drain the event queue first
-        self.handle_events();
+        self.handle_events(ctx);
         self.handle_tray_events(ctx);
 
         // housekeeping stuff
@@ -281,7 +293,7 @@ impl eframe::App for ClipVaultApp {
                     let cfg = self.config.lock().unwrap();
                     let notify = cfg.notifications.enabled && cfg.notifications.on_paste;
                     drop(cfg);
-                    self.close_overlay();
+                    self.close_overlay(ctx);
                     let _ = paste::paste_text(&data);
                     if notify {
                         let cfg = self.config.lock().unwrap();
@@ -292,15 +304,41 @@ impl eframe::App for ClipVaultApp {
                     self.store.lock().unwrap().remove(&id);
                 }
                 OverlayAction::Close => {
-                    self.close_overlay();
+                    self.close_overlay(ctx);
                 }
+            }
+            // clicking away (window loses focus) closes the overlay, but not
+            // during the first moments after opening while focus is settling
+            let opened_ms = self
+                .last_open
+                .map(|at| at.elapsed().as_millis())
+                .unwrap_or(u128::MAX);
+            if self.show_overlay && opened_ms > 500 && !ctx.input(|i| i.raw.focused) {
+                self.close_overlay(ctx);
             }
         } else {
             // need an empty panel here or eframe will exit, kinda annoying
             egui::CentralPanel::default()
                 .frame(egui::Frame::none())
                 .show(ctx, |_ui| {});
+
+            // if the os showed our hidden window anyway (taskbar click,
+            // alt-tab), open the overlay instead of presenting an empty black
+            // shell. debounced so escape doesn't instantly reopen it.
+            let closed_ms = self
+                .last_close
+                .map(|at| at.elapsed().as_millis())
+                .unwrap_or(u128::MAX);
+            if ctx.input(|i| i.raw.focused) && closed_ms > 500 {
+                self.open_overlay(ctx, Tab::History);
+            }
         }
+    }
+
+    fn clear_color(&self, _visuals: &egui::Visuals) -> [f32; 4] {
+        // fully transparent so only the rounded overlay window shows,
+        // not a black 480x600 rectangle around it
+        egui::Rgba::TRANSPARENT.to_array()
     }
 
     fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
@@ -340,6 +378,7 @@ pub fn run(
             .with_inner_size([viewport_w, viewport_h])
             .with_min_inner_size([360.0, 400.0])
             .with_decorations(false)
+            .with_transparent(true)
             .with_always_on_top()
             .with_icon(window_icon)
             .with_visible(false), // hidden by default, shows up when you hit the hotkey
